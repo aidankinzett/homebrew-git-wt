@@ -12,12 +12,12 @@
 
 **git-wt makes it easy:**
 ```bash
-git-wt add feature/new-api
-# → Creates worktree
-# → Symlinks .env files
-# → Installs dependencies (pnpm/yarn/npm)
-# → Opens in Cursor
-# Ready to code in 30 seconds
+git-wt  # Interactive fuzzy finder
+# → Browse all branches (local + remote)
+# → See existing worktrees at a glance
+# → Preview branch info and commits
+# → Press Enter to create/open worktree
+# Ready to code in seconds
 ```
 
 ## Installation
@@ -38,7 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/aidankinzett/homebrew-git-wt/main/g
 
 ### Dependencies
 
-- [fzf](https://github.com/junegunn/fzf) - Required for interactive mode (planned feature)
+- [fzf](https://github.com/junegunn/fzf) - Required for interactive mode
   ```bash
   brew install fzf
   ```
@@ -49,20 +49,50 @@ curl -fsSL https://raw.githubusercontent.com/aidankinzett/homebrew-git-wt/main/g
 # In any git repository
 cd ~/my-project
 
-# Create a worktree for a branch
-git-wt add feature/dashboard
+# Launch interactive fuzzy finder (default)
+git-wt
+
+# Or directly create/open a worktree
+git-wt feature/dashboard
 
 # List all worktrees
-git-wt list
+git-wt --list
 
 # Remove a worktree when done
-git-wt remove feature/dashboard
+git-wt --remove feature/dashboard
 
 # Clean up stale references
-git-wt prune
+git-wt --prune
 ```
 
 ## Current Features
+
+### Interactive Fuzzy Finder
+
+Run `git-wt` with no arguments to launch an interactive branch browser:
+
+```bash
+git-wt  # No arguments → fuzzy finder mode
+```
+
+**Features:**
+- Browse all local and remote branches in one view
+- Visual indicators:
+  - `✓` - Branch has an existing worktree
+  - `[current]` - Currently checked out branch
+  - `[remote only]` - Branch exists only on remote
+- **Preview pane** showing:
+  - Worktree path and status
+  - Directory size (including node_modules)
+  - Last modified time
+  - Recent commits
+- Press `Enter` to create or open a worktree
+- Press `Esc` to cancel
+
+**Direct mode** also available:
+```bash
+git-wt feature/my-branch  # Skip fuzzy finder, go straight to branch
+```
 
 ### Automatic Worktree Setup
 
@@ -102,28 +132,38 @@ This makes them:
 
 ## Usage
 
-### Create Worktree
+### Interactive Mode (Default)
 
 ```bash
-git-wt add <branch-name>
+git-wt
 ```
+
+Launches the fuzzy finder to browse and select branches interactively.
+
+### Direct Mode
+
+```bash
+git-wt <branch-name>
+```
+
+Directly create or open a worktree for the specified branch.
 
 **Examples:**
 ```bash
 # Pull down a PR branch
-git-wt add feature/team-member-pr
+git-wt feature/team-member-pr
 
 # Start new feature
-git-wt add feature/my-new-feature
+git-wt feature/my-new-feature
 
 # Work on existing branch
-git-wt add bugfix/login-issue
+git-wt bugfix/login-issue
 ```
 
 ### List Worktrees
 
 ```bash
-git-wt list
+git-wt --list  # or -l
 ```
 
 Shows all worktrees for the current project with their paths and branches.
@@ -131,7 +171,7 @@ Shows all worktrees for the current project with their paths and branches.
 ### Remove Worktree
 
 ```bash
-git-wt remove <branch-name>
+git-wt --remove <branch-name>  # or -r
 ```
 
 Removes the worktree and cleans up the directory structure.
@@ -139,28 +179,21 @@ Removes the worktree and cleans up the directory structure.
 ### Prune Stale References
 
 ```bash
-git-wt prune
+git-wt --prune  # or -p
 ```
 
 Removes worktree references for directories that no longer exist.
 
 ## Planned Enhancements
 
-We're working on major improvements! See [Design Document](docs/plans/2025-10-21-git-wt-enhancements-design.md) for full details.
+See [Design Document](docs/plans/2025-10-21-git-wt-enhancements-design.md) for full details.
 
-### Interactive Fuzzy Finder
+### Enhanced Fuzzy Finder Actions
 
-```bash
-git-wt  # No arguments → launches interactive mode
-```
-
-- Browse all branches (local + remote) with fzf
-- See which branches already have worktrees (✓ indicator)
-- Preview pane showing worktree info, size, and recent commits
-- Keybindings:
-  - `Enter` - Open existing or create new worktree
-  - `d` - Delete worktree
-  - `r` - Recreate worktree (fresh install)
+Future additions to the interactive mode:
+- `d` keybinding - Delete worktree directly from fuzzy finder
+- `r` keybinding - Recreate worktree (fresh dependency install)
+- Keep fuzzy finder open after actions (reload feature)
 
 ### Auto-Pruning
 
@@ -185,13 +218,11 @@ Automatically clean up stale worktrees to save disk space:
     accessedWithinDays = 7
 ```
 
-### Simplified Commands
-
+**Commands:**
 ```bash
-git-wt                    # Interactive fuzzy finder
-git-wt feature/branch     # Direct to branch
-git-wt --list            # List worktrees
 git-wt --cleanup         # Force cleanup stale worktrees
+git-wt --no-autoprune    # Disable auto-pruning for one command
+git-wt --cleanup --dry-run  # Preview what would be cleaned up
 ```
 
 ## Development
@@ -254,8 +285,9 @@ Contributions welcome! Whether it's:
 
 ### Areas for Contribution
 
-- [ ] Implement fuzzy finder (see [design doc](docs/plans/2025-10-21-git-wt-enhancements-design.md))
-- [ ] Add auto-pruning logic
+- [x] Implement fuzzy finder (Phase 1 complete!)
+- [ ] Add delete/recreate keybindings to fuzzy finder (Phase 2)
+- [ ] Add auto-pruning logic (Phase 3)
 - [ ] Improve error messages
 - [ ] Add bash completion
 - [ ] Support for other editors (VS Code, Vim, etc.)
@@ -299,7 +331,7 @@ export PATH="$HOME/bin:$PATH"
 
 ### Worktree already exists error
 
-Use `git-wt list` to see existing worktrees, or `git-wt remove <branch>` to remove the old one.
+Use `git-wt --list` to see existing worktrees, or use the interactive fuzzy finder (`git-wt`) which shows existing worktrees with a ✓ indicator. You can also use `git-wt --remove <branch>` to remove the old one.
 
 ### Package manager not detected
 
@@ -320,5 +352,5 @@ Inspired by the pain of context switching and the power of git worktrees.
 ---
 
 **Status:** Active development 🚧
-**Version:** 0.1.0 (Current features)
-**Next:** Interactive fuzzy finder + auto-pruning ([Design](docs/plans/2025-10-21-git-wt-enhancements-design.md))
+**Version:** 0.2.0 (Fuzzy finder Phase 1 complete!)
+**Next:** Delete/recreate keybindings + auto-pruning ([Design](docs/plans/2025-10-21-git-wt-enhancements-design.md))
