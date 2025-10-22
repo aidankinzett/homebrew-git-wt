@@ -107,6 +107,273 @@ symlink_env_files() {
     done <<< "$env_files"
 }
 
+# Check if fzf is installed
+check_fzf() {
+    if ! command -v fzf &> /dev/null; then
+        error "fzf is required for interactive mode"
+        echo ""
+        info "Install fzf:"
+        echo "  macOS:  brew install fzf"
+        echo "  Linux:  apt install fzf  (or your package manager)"
+        echo ""
+        info "Alternatively, use direct mode:"
+        echo "  git-wt <branch-name>"
+        echo "  git-wt --list"
+        exit 1
+    fi
+}
+
+# Check if branch has a worktree
+has_worktree() {
+    local branch="$1"
+    local project_name=$(get_project_name)
+    local worktree_path="$WORKTREE_BASE/$project_name/$branch"
+    [[ -d "$worktree_path" ]]
+}
+
+# Get worktree path for branch
+get_worktree_path() {
+    local branch="$1"
+    local project_name=$(get_project_name)
+    echo "$WORKTREE_BASE/$project_name/$branch"
+}
+
+# Generate branch list with indicators for fuzzy finder
+generate_branch_list() {
+    local current_branch=$(git branch --show-current 2>/dev/null || echo "")
+
+    # Get all branches (local and remote)
+    local branches=()
+
+    # Local branches
+    while IFS= read -r branch; do
+        branches+=("$branch|local")
+    done < <(git branch --format='%(refname:short)' 2>/dev/null)
+
+    # Remote branches (excluding HEAD)
+    while IFS= read -r branch; do
+        local branch_name="${branch#origin/}"
+        # Skip if this is HEAD or if we already have it as local
+        if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[@]} " =~ " ${branch_name}|local " ]]; then
+            branches+=("$branch_name|remote")
+        fi
+    done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
+
+    # Sort and format branches with indicators
+    local formatted_branches=()
+
+    # First add current branch
+    for branch_info in "${branches[@]}"; do
+        local branch="${branch_info%|*}"
+        local type="${branch_info#*|}"
+
+        if [[ "$branch" == "$current_branch" ]]; then
+            formatted_branches+=("$(format_branch_line "$branch" "$type" "$current_branch")")
+        fi
+    done
+
+    # Then add branches with worktrees
+    for branch_info in "${branches[@]}"; do
+        local branch="${branch_info%|*}"
+        local type="${branch_info#*|}"
+
+        if [[ "$branch" != "$current_branch" ]] && has_worktree "$branch"; then
+            formatted_branches+=("$(format_branch_line "$branch" "$type" "$current_branch")")
+        fi
+    done
+
+    # Then add other local branches
+    for branch_info in "${branches[@]}"; do
+        local branch="${branch_info%|*}"
+        local type="${branch_info#*|}"
+
+        if [[ "$branch" != "$current_branch" ]] && ! has_worktree "$branch" && [[ "$type" == "local" ]]; then
+            formatted_branches+=("$(format_branch_line "$branch" "$type" "$current_branch")")
+        fi
+    done
+
+    # Finally add remote-only branches
+    for branch_info in "${branches[@]}"; do
+        local branch="${branch_info%|*}"
+        local type="${branch_info#*|}"
+
+        if [[ "$branch" != "$current_branch" ]] && ! has_worktree "$branch" && [[ "$type" == "remote" ]]; then
+            formatted_branches+=("$(format_branch_line "$branch" "$type" "$current_branch")")
+        fi
+    done
+
+    printf '%s\n' "${formatted_branches[@]}"
+}
+
+# Format a single branch line with indicators
+format_branch_line() {
+    local branch="$1"
+    local type="$2"
+    local current_branch="$3"
+
+    local indicator=""
+    local suffix=""
+
+    # Add worktree indicator
+    if has_worktree "$branch"; then
+        indicator="\033[0;32m✓\033[0m "  # Green checkmark
+    else
+        indicator="  "
+    fi
+
+    # Add status suffix
+    if [[ "$branch" == "$current_branch" ]]; then
+        suffix=" \033[0;33m[current]\033[0m"  # Yellow
+    elif [[ "$type" == "remote" ]]; then
+        suffix=" \033[0;36m[remote only]\033[0m"  # Cyan
+    fi
+
+    echo -e "${indicator}${branch}${suffix}"
+}
+
+# Show worktree info for preview pane
+show_worktree_info() {
+    local line="$1"
+
+    # Strip ANSI color codes and extract branch name
+    local branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        echo "No branch selected"
+        return
+    fi
+
+    echo "Branch: $branch"
+    echo ""
+
+    # Check if worktree exists
+    local worktree_path=$(get_worktree_path "$branch")
+
+    if [[ -d "$worktree_path" ]]; then
+        echo "Worktree: $worktree_path"
+
+        # Git status
+        cd "$worktree_path" 2>/dev/null || return
+        local status=$(git status --porcelain 2>/dev/null)
+        if [[ -z "$status" ]]; then
+            echo "Status: Clean ✓"
+        else
+            echo "Status: Has uncommitted changes"
+        fi
+
+        # Last modified time
+        local last_modified=$(find "$worktree_path" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | awk '{print $1}')
+        if [[ -n "$last_modified" ]]; then
+            local mod_date=$(date -r "$last_modified" "+%Y-%m-%d %H:%M" 2>/dev/null)
+            echo "Last modified: $mod_date"
+        fi
+
+        # Directory size
+        local total_size=$(du -sh "$worktree_path" 2>/dev/null | awk '{print $1}')
+        echo "Size: $total_size"
+
+        if [[ -d "$worktree_path/node_modules" ]]; then
+            local nm_size=$(du -sh "$worktree_path/node_modules" 2>/dev/null | awk '{print $1}')
+            echo "  (node_modules: $nm_size)"
+        fi
+
+        echo ""
+        echo "Recent commits:"
+        git log --oneline --color=always -n 3 2>/dev/null | sed 's/^/  /'
+
+    else
+        echo "Worktree: Not created"
+        echo ""
+
+        # Check if branch exists locally or remotely
+        if git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+            echo "Branch type: Local"
+            echo ""
+            echo "Recent commits:"
+            git log --oneline --color=always -n 3 "$branch" 2>/dev/null | sed 's/^/  /' || echo "  No commits yet"
+        elif git ls-remote --heads origin "$branch" 2>/dev/null | grep -q "$branch"; then
+            echo "Branch type: Remote only (origin/$branch)"
+            echo ""
+            echo "Recent commits:"
+            git log --oneline --color=always -n 3 "origin/$branch" 2>/dev/null | sed 's/^/  /' || echo "  Unable to fetch commits"
+        else
+            echo "Branch type: New (will be created from current HEAD)"
+        fi
+    fi
+}
+
+# Open or create worktree (called from fuzzy finder)
+open_or_create_worktree() {
+    local line="$1"
+
+    # Strip ANSI color codes and extract branch name
+    local branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        error "No branch selected"
+        return 1
+    fi
+
+    local worktree_path=$(get_worktree_path "$branch")
+
+    # If worktree exists, just open it
+    if [[ -d "$worktree_path" ]]; then
+        info "Opening existing worktree: $worktree_path"
+
+        if command -v cursor &> /dev/null; then
+            cursor "$worktree_path"
+        else
+            echo -e "${BLUE}cd $worktree_path${NC}"
+        fi
+    else
+        # Create new worktree
+        cmd_add "$branch"
+    fi
+}
+
+# Interactive fuzzy finder mode
+cmd_interactive() {
+    check_git_repo
+    check_fzf
+
+    # Export functions so they're available to fzf subshells
+    export -f show_worktree_info
+    export -f open_or_create_worktree
+    export -f has_worktree
+    export -f get_worktree_path
+    export -f get_project_name
+    export -f error
+    export -f success
+    export -f info
+    export -f warning
+    export WORKTREE_BASE
+    export RED
+    export GREEN
+    export YELLOW
+    export BLUE
+    export NC
+
+    # Generate branch list and launch fuzzy finder
+    local script_path="$0"
+    local selected=$(generate_branch_list | fzf \
+        --ansi \
+        --preview "$script_path __preview {}" \
+        --preview-window right:50% \
+        --prompt "Select branch > " \
+        --header "[Enter] Open/Create  [Esc] Cancel  [Tip: Run 'git fetch' first for latest remote branches]" \
+        --border \
+        --height 100%)
+
+    # Handle selection
+    if [[ -n "$selected" ]]; then
+        echo ""
+        open_or_create_worktree "$selected"
+    else
+        echo ""
+        info "Cancelled"
+    fi
+}
+
 # Add a new worktree
 cmd_add() {
     local branch_name="$1"
@@ -310,68 +577,83 @@ cmd_help() {
 git-wt - Git worktree management tool
 
 USAGE:
-  git-wt <command> [arguments]
+  git-wt [branch-name|options]
 
-COMMANDS:
-  add <branch-name>     Create a new worktree for the specified branch
+MODES:
+  git-wt                Interactive fuzzy finder to browse and select branches
+                        - Shows all local and remote branches
+                        - Visual indicators for existing worktrees
+                        - Preview pane with worktree details
+                        - Press Enter to create or open worktree
+
+  git-wt <branch-name>  Directly create or open worktree for specified branch
                         - Creates worktree at ~/Git/.worktrees/<project>/<branch>
                         - Symlinks all .env* files from main repo
                         - Detects and runs package manager install
+                        - Opens in Cursor (if available)
 
-  list                  Show all worktrees for the current project
-
-  remove <branch-name>  Remove a worktree
-
-  prune                 Remove stale worktree references
-
-  help                  Show this help message
+OPTIONS:
+  --list, -l            Show all worktrees for the current project
+  --remove <branch>, -r Remove a worktree
+  --prune, -p           Remove stale worktree references
+  --help, -h            Show this help message
 
 EXAMPLES:
-  # Create a new worktree for feature branch
-  git-wt add feature/new-feature
+  # Launch interactive fuzzy finder
+  git-wt
+
+  # Directly create/open a worktree
+  git-wt feature/new-feature
 
   # List all worktrees
-  git-wt list
+  git-wt --list
 
   # Remove a worktree
-  git-wt remove feature/old-feature
+  git-wt --remove feature/old-feature
 
   # Clean up stale references
-  git-wt prune
+  git-wt --prune
 
 LOCATION:
   All worktrees are stored in: ~/Git/.worktrees/<project-name>/<branch-name>
+
+REQUIREMENTS:
+  - fzf (for interactive mode): brew install fzf
 
 EOF
 }
 
 # Main command dispatcher
 main() {
-    local command="${1:-help}"
+    local command="${1:-}"
 
+    # Handle flag-based commands
     case "$command" in
-        add)
+        __preview)
+            # Internal command for fzf preview pane
             shift
-            cmd_add "$@"
+            show_worktree_info "$@"
             ;;
-        list|ls)
+        --list|-l|list|ls)
             cmd_list
             ;;
-        remove|rm)
+        --remove|-r|remove|rm)
             shift
             cmd_remove "$@"
             ;;
-        prune)
+        --prune|-p|prune)
             cmd_prune
             ;;
-        help|--help|-h)
+        --help|-h|help)
             cmd_help
             ;;
+        "")
+            # No arguments - launch interactive mode
+            cmd_interactive
+            ;;
         *)
-            error "Unknown command: $command"
-            echo ""
-            cmd_help
-            exit 1
+            # Treat as branch name - direct mode
+            cmd_add "$command"
             ;;
     esac
 }
