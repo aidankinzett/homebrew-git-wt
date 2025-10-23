@@ -11,7 +11,7 @@ The changelog tracks changes for future reference, but versions are not tagged i
 ## [Unreleased]
 
 ### Added
-- **Interactive fuzzy finder mode** (Phase 1 complete!)
+- **Interactive fuzzy finder mode** (Phase 1 + Phase 2 complete!)
   - Launch with `git-wt` (no arguments) to browse all branches
   - Visual indicators for existing worktrees (✓), current branch, remote-only branches
   - Preview pane showing worktree details:
@@ -19,9 +19,15 @@ The changelog tracks changes for future reference, but versions are not tagged i
     - Directory size (total + node_modules)
     - Last modified time
     - Recent commits (last 3)
+  - **Phase 2: Delete and Recreate Actions**
+    - Press `d` to delete worktree (with safety checks)
+    - Press `r` to recreate worktree (delete + fresh install)
+    - Safety checks for uncommitted changes with confirmation prompts
+    - Fuzzy finder stays open after delete/recreate for multiple operations
+    - Automatic reload after each action
   - Press Enter to create or open worktree
   - Press Esc to cancel
-  - fzf integration with ANSI color support
+  - fzf integration with ANSI color support and reload mechanism
 - Direct branch access: `git-wt <branch-name>` skips fuzzy finder
 - Flag-based commands: `--list`, `--remove`, `--prune`, `--help`
 - fzf installation check with helpful error messages

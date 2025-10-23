@@ -302,6 +302,126 @@ show_worktree_info() {
     fi
 }
 
+# Check if worktree has uncommitted changes
+has_uncommitted_changes() {
+    local worktree_path="$1"
+    cd "$worktree_path" 2>/dev/null || return 1
+    local status=$(git status --porcelain 2>/dev/null)
+    [[ -n "$status" ]]
+}
+
+# Delete worktree (called from fuzzy finder)
+delete_worktree() {
+    local line="$1"
+
+    # Strip ANSI color codes and extract branch name
+    local branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        error "No branch selected" >&2
+        return 1
+    fi
+
+    local worktree_path=$(get_worktree_path "$branch")
+
+    # Check if worktree exists
+    if [[ ! -d "$worktree_path" ]]; then
+        error "Worktree does not exist for branch: $branch" >&2
+        return 1
+    fi
+
+    # Check for uncommitted changes
+    if has_uncommitted_changes "$worktree_path"; then
+        warning "⚠️  Worktree has uncommitted changes!" >&2
+        echo "" >&2
+        echo "Branch: $branch" >&2
+        echo "Path: $worktree_path" >&2
+        echo "" >&2
+        read -p "Are you sure you want to delete it? [y/N] " -n 1 -r >&2
+        echo "" >&2
+
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            info "Deletion cancelled" >&2
+            return 1
+        fi
+    fi
+
+    # Remove the worktree
+    if git worktree remove "$worktree_path" --force 2>&1; then
+        success "✓ Deleted worktree: $branch" >&2
+
+        # Clean up empty parent directories
+        local parent_dir="$(dirname "$worktree_path")"
+        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir")" ]]; then
+            rmdir "$parent_dir" 2>/dev/null
+        fi
+
+        return 0
+    else
+        error "Failed to delete worktree: $branch" >&2
+        return 1
+    fi
+}
+
+# Recreate worktree (delete + create fresh)
+recreate_worktree() {
+    local line="$1"
+
+    # Strip ANSI color codes and extract branch name
+    local branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        error "No branch selected" >&2
+        return 1
+    fi
+
+    local worktree_path=$(get_worktree_path "$branch")
+
+    # Check if worktree exists
+    if [[ ! -d "$worktree_path" ]]; then
+        error "Worktree does not exist for branch: $branch" >&2
+        info "Use Enter to create it instead" >&2
+        return 1
+    fi
+
+    # Check for uncommitted changes
+    if has_uncommitted_changes "$worktree_path"; then
+        warning "⚠️  Worktree has uncommitted changes!" >&2
+        echo "" >&2
+        echo "Branch: $branch" >&2
+        echo "Path: $worktree_path" >&2
+        echo "" >&2
+        read -p "Are you sure you want to recreate it? All changes will be lost! [y/N] " -n 1 -r >&2
+        echo "" >&2
+
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            info "Recreation cancelled" >&2
+            return 1
+        fi
+    fi
+
+    info "Recreating worktree: $branch" >&2
+    echo "" >&2
+
+    # Delete the existing worktree
+    if ! git worktree remove "$worktree_path" --force 2>&1; then
+        error "Failed to delete existing worktree" >&2
+        return 1
+    fi
+
+    # Clean up empty parent directories
+    local parent_dir="$(dirname "$worktree_path")"
+    if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir")" ]]; then
+        rmdir "$parent_dir" 2>/dev/null
+    fi
+
+    # Create fresh worktree
+    cmd_add "$branch" >&2
+
+    success "✓ Recreated worktree: $branch" >&2
+    return 0
+}
+
 # Open or create worktree (called from fuzzy finder)
 open_or_create_worktree() {
     local line="$1"
@@ -339,9 +459,16 @@ cmd_interactive() {
     # Export functions so they're available to fzf subshells
     export -f show_worktree_info
     export -f open_or_create_worktree
+    export -f delete_worktree
+    export -f recreate_worktree
     export -f has_worktree
+    export -f has_uncommitted_changes
     export -f get_worktree_path
     export -f get_project_name
+    export -f cmd_add
+    export -f symlink_env_files
+    export -f detect_package_manager
+    export -f get_main_worktree
     export -f error
     export -f success
     export -f info
@@ -355,14 +482,25 @@ cmd_interactive() {
 
     # Generate branch list and launch fuzzy finder
     local script_path="$0"
+
+    # Helper function to regenerate branch list
+    regenerate_list() {
+        generate_branch_list
+    }
+    export -f regenerate_list
+    export -f generate_branch_list
+    export -f format_branch_line
+
     local selected=$(generate_branch_list | fzf \
         --ansi \
         --preview "$script_path __preview {}" \
         --preview-window right:50% \
         --prompt "Select branch > " \
-        --header "[Enter] Open/Create  [Esc] Cancel  [Tip: Run 'git fetch' first for latest remote branches]" \
+        --header "[Enter] Open/Create  [d] Delete  [r] Recreate  [Esc] Cancel" \
         --border \
-        --height 100%)
+        --height 100% \
+        --bind "d:execute-silent($script_path __delete {})+reload($script_path __reload)" \
+        --bind "r:execute($script_path __recreate {})+reload($script_path __reload)")
 
     # Handle selection
     if [[ -n "$selected" ]]; then
@@ -584,7 +722,11 @@ MODES:
                         - Shows all local and remote branches
                         - Visual indicators for existing worktrees
                         - Preview pane with worktree details
-                        - Press Enter to create or open worktree
+                        - Keybindings:
+                          • Enter: Create or open worktree
+                          • d: Delete worktree (with safety checks)
+                          • r: Recreate worktree (delete + fresh install)
+                          • Esc: Cancel
 
   git-wt <branch-name>  Directly create or open worktree for specified branch
                         - Creates worktree at ~/Git/.worktrees/<project>/<branch>
@@ -614,6 +756,18 @@ EXAMPLES:
   # Clean up stale references
   git-wt --prune
 
+INTERACTIVE KEYBINDINGS:
+  When in fuzzy finder mode:
+    Enter - Open existing worktree or create new one
+    d     - Delete selected worktree (prompts if uncommitted changes)
+    r     - Recreate worktree (delete + create fresh)
+    Esc   - Cancel and exit
+
+SAFETY FEATURES:
+  - Delete and recreate actions check for uncommitted changes
+  - Confirmation prompts when uncommitted work is detected
+  - Fuzzy finder stays open after delete/recreate for multiple operations
+
 LOCATION:
   All worktrees are stored in: ~/Git/.worktrees/<project-name>/<branch-name>
 
@@ -633,6 +787,21 @@ main() {
             # Internal command for fzf preview pane
             shift
             show_worktree_info "$@"
+            ;;
+        __delete)
+            # Internal command for fzf delete keybinding
+            shift
+            delete_worktree "$@"
+            ;;
+        __recreate)
+            # Internal command for fzf recreate keybinding
+            shift
+            recreate_worktree "$@"
+            ;;
+        __reload)
+            # Internal command for fzf reload
+            check_git_repo
+            generate_branch_list
             ;;
         --list|-l|list|ls)
             cmd_list
