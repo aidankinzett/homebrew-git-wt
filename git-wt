@@ -252,34 +252,36 @@ show_worktree_info() {
     if [[ -d "$worktree_path" ]]; then
         echo "Worktree: $worktree_path"
 
-        # Git status
-        cd "$worktree_path" 2>/dev/null || return
-        local status=$(git status --porcelain 2>/dev/null)
-        if [[ -z "$status" ]]; then
-            echo "Status: Clean ✓"
-        else
-            echo "Status: Has uncommitted changes"
-        fi
+        # Git status (in subshell to preserve cwd)
+        (
+            cd "$worktree_path" 2>/dev/null || exit 1
+            local status=$(git status --porcelain 2>/dev/null)
+            if [[ -z "$status" ]]; then
+                echo "Status: Clean ✓"
+            else
+                echo "Status: Has uncommitted changes"
+            fi
 
-        # Last modified time
-        local last_modified=$(find "$worktree_path" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | awk '{print $1}')
-        if [[ -n "$last_modified" ]]; then
-            local mod_date=$(date -r "$last_modified" "+%Y-%m-%d %H:%M" 2>/dev/null)
-            echo "Last modified: $mod_date"
-        fi
+            # Last modified time
+            local last_modified=$(find "$worktree_path" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | awk '{print $1}')
+            if [[ -n "$last_modified" ]]; then
+                local mod_date=$(date -r "$last_modified" "+%Y-%m-%d %H:%M" 2>/dev/null)
+                echo "Last modified: $mod_date"
+            fi
 
-        # Directory size
-        local total_size=$(du -sh "$worktree_path" 2>/dev/null | awk '{print $1}')
-        echo "Size: $total_size"
+            # Directory size
+            local total_size=$(du -sh "$worktree_path" 2>/dev/null | awk '{print $1}')
+            echo "Size: $total_size"
 
-        if [[ -d "$worktree_path/node_modules" ]]; then
-            local nm_size=$(du -sh "$worktree_path/node_modules" 2>/dev/null | awk '{print $1}')
-            echo "  (node_modules: $nm_size)"
-        fi
+            if [[ -d "$worktree_path/node_modules" ]]; then
+                local nm_size=$(du -sh "$worktree_path/node_modules" 2>/dev/null | awk '{print $1}')
+                echo "  (node_modules: $nm_size)"
+            fi
 
-        echo ""
-        echo "Recent commits:"
-        git log --oneline --color=always -n 3 2>/dev/null | sed 's/^/  /'
+            echo ""
+            echo "Recent commits:"
+            git log --oneline --color=always -n 3 2>/dev/null | sed 's/^/  /'
+        )
 
     else
         echo "Worktree: Not created"
@@ -305,9 +307,11 @@ show_worktree_info() {
 # Check if worktree has uncommitted changes
 has_uncommitted_changes() {
     local worktree_path="$1"
-    cd "$worktree_path" 2>/dev/null || return 1
-    local status=$(git status --porcelain 2>/dev/null)
-    [[ -n "$status" ]]
+    (
+        cd "$worktree_path" 2>/dev/null || return 1
+        local status=$(git status --porcelain 2>/dev/null)
+        [[ -n "$status" ]]
+    )
 }
 
 # Delete worktree (called from fuzzy finder)
@@ -377,6 +381,9 @@ recreate_worktree() {
 
     local worktree_path=$(get_worktree_path "$branch")
 
+    # Remember the git repo root
+    local git_root=$(git rev-parse --show-toplevel 2>/dev/null)
+
     # Check if worktree exists
     if [[ ! -d "$worktree_path" ]]; then
         error "Worktree does not exist for branch: $branch" >&2
@@ -402,6 +409,11 @@ recreate_worktree() {
 
     info "Recreating worktree: $branch" >&2
     echo "" >&2
+
+    # Ensure we're in the git repository
+    if [[ -n "$git_root" ]]; then
+        cd "$git_root" 2>/dev/null || true
+    fi
 
     # Delete the existing worktree
     if ! git worktree remove "$worktree_path" --force 2>&1; then
