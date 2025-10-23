@@ -41,6 +41,10 @@ The changelog tracks changes for future reference, but versions are not tagged i
 - Default behavior changed: running `git-wt` with no args now launches fuzzy finder (was: show help)
 - Commands now use flag syntax: `--list` instead of `list`, `--remove` instead of `remove`, etc.
 - Help documentation updated to reflect new interactive mode and command structure
+- **Optimized remote branch loading**: Remote branches now load asynchronously in the background
+  - Fuzzy finder shows local branches and worktrees immediately
+  - Loading indicator appears while remote branches are being fetched
+  - Remote branches appear as they become available (no longer blocks UI)
 
 ### Removed
 - `add` subcommand (replaced by direct branch syntax)
