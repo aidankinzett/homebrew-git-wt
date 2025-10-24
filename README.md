@@ -252,7 +252,7 @@ vim git-wt
 
 # When ready, push and reinstall
 git push
-brew reinstall --HEAD aidankinzett/git-wt
+brew reinstall git-wt
 ```
 
 ### Project Structure
