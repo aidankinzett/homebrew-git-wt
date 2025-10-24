@@ -46,10 +46,14 @@ Where `<project-name>` is extracted from the git remote URL (falls back to direc
 
 ```bash
 # Install from local tap (HEAD = latest main branch)
-brew install --HEAD aidankinzett/git-wt/git-wt
+brew install --HEAD git-wt
 
-# After making changes, reinstall
-brew reinstall --HEAD aidankinzett/git-wt/git-wt
+# After making changes to main and pushing, reinstall to get latest HEAD
+# Note: --HEAD flag is only needed for initial install, not for reinstall
+brew reinstall git-wt
+
+# Alternative: Use upgrade to only update if there are changes
+brew upgrade --fetch-HEAD git-wt
 ```
 
 ### Linting
@@ -142,7 +146,11 @@ brew install --HEAD git-wt         # Installs Formula/git-wt.rb
 
 Users update with:
 ```bash
-brew reinstall --HEAD git-wt
+# Reinstall to get latest from HEAD (always reinstalls even if no changes)
+brew reinstall git-wt
+
+# OR check for updates first, only upgrade if changes exist
+brew upgrade --fetch-HEAD git-wt
 ```
 
 **No need for:**
