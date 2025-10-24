@@ -355,19 +355,30 @@ cmd_interactive() {
 
     # Generate branch list and launch fuzzy finder
     local script_path="$0"
-    local selected=$(generate_branch_list | fzf \
+    local result=$(generate_branch_list | fzf \
         --ansi \
+        --print-query \
         --preview "$script_path __preview {}" \
         --preview-window right:50% \
         --prompt "Select branch > " \
-        --header "[Enter] Open/Create  [Esc] Cancel  [Tip: Run 'git fetch' first for latest remote branches]" \
+        --header "[Enter] Open/Create  [Esc] Cancel  [Tip: Type new branch name or select existing]" \
         --border \
         --height 100%)
 
-    # Handle selection
-    if [[ -n "$selected" ]]; then
+    # Handle selection - fzf with --print-query outputs query on first line, selection on second
+    if [[ -n "$result" ]]; then
+        local query=$(echo "$result" | head -n 1)
+        local selected=$(echo "$result" | sed -n '2p')
+
         echo ""
-        open_or_create_worktree "$selected"
+        # If user selected an item from the list, use that. Otherwise use the query (new branch name)
+        if [[ -n "$selected" ]]; then
+            open_or_create_worktree "$selected"
+        elif [[ -n "$query" ]]; then
+            open_or_create_worktree "$query"
+        else
+            info "Cancelled"
+        fi
     else
         echo ""
         info "Cancelled"
