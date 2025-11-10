@@ -717,7 +717,7 @@ main() {
             ;;
         *)
             # Treat as branch name - direct mode
-            cmd_add "$command"
+            open_or_create_worktree "$command"
             ;;
     esac
 }
