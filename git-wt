@@ -302,7 +302,15 @@ show_worktree_info() {
             echo "Recent commits:"
             git log --oneline --color=always -n 3 "origin/$branch" 2>/dev/null | sed 's/^/  /' || echo "  Unable to fetch commits"
         else
-            echo "Branch type: New (will be created from current HEAD)"
+            # New branch - show what it will be created from
+            local current_branch=$(git branch --show-current 2>/dev/null)
+            if [[ -n "$current_branch" ]]; then
+                echo "Branch type: New (will be created from '$current_branch')"
+            else
+                # Detached HEAD - show commit hash
+                local commit_hash=$(git rev-parse --short HEAD 2>/dev/null)
+                echo "Branch type: New (will be created from commit $commit_hash)"
+            fi
         fi
     fi
 }
@@ -374,9 +382,6 @@ cmd_interactive() {
         # First, output local branches immediately
         generate_branch_list "local-only"
 
-        # Add a loading indicator for remote branches
-        echo -e "  \033[0;90m[Loading remote branches...]\033[0m"
-
         # Now fetch remote branches in background
         local current_branch=$(git branch --show-current 2>/dev/null || echo "")
         local branches=()
@@ -399,27 +404,19 @@ cmd_interactive() {
     local bg_pid=$!
 
     # Launch fuzzy finder with the FIFO as input
-    # Filter out the loading indicator line from selection
     local result=$(cat "$fifo" | fzf \
         --ansi \
         --print-query \
         --preview "$script_path __preview {}" \
         --preview-window right:50% \
         --prompt "Select branch > " \
-        --header "[Enter] Open/Create  [Esc] Cancel  [Tip: Type new branch name or select existing]" \
+        --header "[Enter] Open/Create  [Esc] Cancel" \
         --border \
         --height 100% \
         --no-select-1)
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null
-
-    # Filter out loading indicator if it was selected (shouldn't happen, but just in case)
-    if [[ "$result" =~ "Loading remote branches" ]]; then
-        echo ""
-        info "Cancelled"
-        return
-    fi
 
     # Handle selection - fzf with --print-query outputs query on first line, selection on second
     if [[ -n "$result" ]]; then
