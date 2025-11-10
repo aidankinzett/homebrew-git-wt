@@ -315,6 +315,77 @@ show_worktree_info() {
     fi
 }
 
+# Check if a worktree is stale and safe to prune
+is_worktree_stale() {
+    local branch="$1"
+    local worktree_path="$2"
+
+    # Determine main branch name
+    local main_branch=$(git config --get init.defaultBranch 2>/dev/null || echo "main")
+
+    # Try main, fallback to master if main doesn't exist
+    if ! git show-ref --verify --quiet "refs/heads/$main_branch" 2>/dev/null; then
+        main_branch="master"
+    fi
+
+    # Check if branch is merged into main/master
+    if git branch --merged "$main_branch" 2>/dev/null | grep -q "^[* ]*$branch$"; then
+        # Safety guardrail: Check for uncommitted changes
+        cd "$worktree_path" 2>/dev/null || return 1
+        if [[ -z "$(git status --porcelain 2>/dev/null)" ]]; then
+            return 0  # Is stale and safe to prune
+        fi
+    fi
+
+    return 1  # Not stale or not safe to prune
+}
+
+# Auto-prune stale worktrees (merged branches with no uncommitted changes)
+auto_prune_stale_worktrees() {
+    local project_name=$(get_project_name)
+    local pruned=0
+    local space_freed=0
+
+    # Get list of worktrees (skip main worktree)
+    local main_worktree=$(get_main_worktree)
+
+    git worktree list --porcelain 2>/dev/null | while IFS= read -r line; do
+        if [[ "$line" =~ ^worktree ]]; then
+            local wt_path="${line#worktree }"
+
+            # Skip main worktree
+            [[ "$wt_path" == "$main_worktree" ]] && continue
+
+            # Get branch for this worktree
+            local branch=$(git -C "$wt_path" branch --show-current 2>/dev/null)
+
+            # Check if stale and prune
+            if [[ -n "$branch" ]] && is_worktree_stale "$branch" "$wt_path"; then
+                # Calculate size before removal (in KB)
+                local size=$(du -sk "$wt_path" 2>/dev/null | awk '{print $1}')
+
+                # Remove worktree
+                if git worktree remove --force "$wt_path" 2>/dev/null; then
+                    pruned=$((pruned + 1))
+                    space_freed=$((space_freed + size))
+
+                    # Clean up empty parent directories
+                    local parent_dir="$(dirname "$wt_path")"
+                    if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
+                        rmdir "$parent_dir" 2>/dev/null
+                    fi
+                fi
+            fi
+        fi
+    done
+
+    # Report if anything was pruned
+    if [[ $pruned -gt 0 ]]; then
+        local space_mb=$((space_freed / 1024))
+        echo "[Auto-pruned $pruned merged worktree(s): ${space_mb}MB freed]"
+    fi
+}
+
 # Open or create worktree (called from fuzzy finder)
 open_or_create_worktree() {
     local line="$1"
@@ -348,6 +419,12 @@ open_or_create_worktree() {
 cmd_interactive() {
     check_git_repo
     check_fzf
+
+    # Start async auto-prune if enabled
+    if [[ "$(git config --get worktree.autoprune 2>/dev/null)" == "true" ]]; then
+        # Fork to background, redirect output to temp log
+        (auto_prune_stale_worktrees > /tmp/git-wt-prune-$$.log 2>&1) &
+    fi
 
     # Export functions so they're available to fzf subshells
     export -f show_worktree_info
@@ -657,10 +734,13 @@ MODES:
                         - Opens in Cursor (if available)
 
 OPTIONS:
-  --list, -l            Show all worktrees for the current project
-  --remove <branch>, -r Remove a worktree
-  --prune, -p           Remove stale worktree references
-  --help, -h            Show this help message
+  --list, -l               Show all worktrees for the current project
+  --remove <branch>, -r    Remove a worktree
+  --prune, -p              Remove stale worktree references
+  --cleanup                Manually prune merged branch worktrees
+  --enable-autoprune       Enable automatic pruning for this repo
+  --disable-autoprune      Disable automatic pruning for this repo
+  --help, -h               Show this help message
 
 EXAMPLES:
   # Launch interactive fuzzy finder
@@ -677,6 +757,22 @@ EXAMPLES:
 
   # Clean up stale references
   git-wt --prune
+
+  # Enable auto-pruning (removes merged branches automatically)
+  git-wt --enable-autoprune
+
+  # Manually cleanup merged branch worktrees
+  git-wt --cleanup
+
+AUTO-PRUNING:
+  When enabled, git-wt automatically removes worktrees for branches that have been
+  merged into main/master. This happens in the background when running git-wt.
+
+  Safety: Only removes worktrees with no uncommitted changes.
+
+  Enable:  git-wt --enable-autoprune
+  Disable: git-wt --disable-autoprune
+  Manual:  git-wt --cleanup
 
 LOCATION:
   All worktrees are stored in: ~/Git/.worktrees/<project-name>/<branch-name>
@@ -707,6 +803,20 @@ main() {
             ;;
         --prune|-p|prune)
             cmd_prune
+            ;;
+        --enable-autoprune)
+            git config worktree.autoprune true
+            success "Auto-pruning enabled for this repository"
+            info "Merged branches will be automatically cleaned up when running git-wt"
+            ;;
+        --disable-autoprune)
+            git config --unset worktree.autoprune 2>/dev/null || true
+            success "Auto-pruning disabled for this repository"
+            ;;
+        --cleanup)
+            check_git_repo
+            info "Checking for stale worktrees..."
+            auto_prune_stale_worktrees
             ;;
         --help|-h|help)
             cmd_help
