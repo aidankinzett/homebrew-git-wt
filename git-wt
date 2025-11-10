@@ -139,10 +139,13 @@ get_worktree_path() {
 }
 
 # Generate branch list with indicators for fuzzy finder
+# Parameters:
+#   $1: mode - "local-only" to only show local branches, "all" to show all branches
 generate_branch_list() {
+    local mode="${1:-all}"
     local current_branch=$(git branch --show-current 2>/dev/null || echo "")
 
-    # Get all branches (local and remote)
+    # Get branches based on mode
     local branches=()
 
     # Local branches
@@ -150,14 +153,16 @@ generate_branch_list() {
         branches+=("$branch|local")
     done < <(git branch --format='%(refname:short)' 2>/dev/null)
 
-    # Remote branches (excluding HEAD)
-    while IFS= read -r branch; do
-        local branch_name="${branch#origin/}"
-        # Skip if this is HEAD or if we already have it as local
-        if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[@]} " =~ " ${branch_name}|local " ]]; then
-            branches+=("$branch_name|remote")
-        fi
-    done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
+    # Remote branches (excluding HEAD) - only if mode is "all"
+    if [[ "$mode" == "all" ]]; then
+        while IFS= read -r branch; do
+            local branch_name="${branch#origin/}"
+            # Skip if this is HEAD or if we already have it as local
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[@]} " =~ " ${branch_name}|local " ]]; then
+                branches+=("$branch_name|remote")
+            fi
+        done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
+    fi
 
     # Sort and format branches with indicators
     local formatted_branches=()
@@ -342,6 +347,8 @@ cmd_interactive() {
     export -f has_worktree
     export -f get_worktree_path
     export -f get_project_name
+    export -f format_branch_line
+    export -f generate_branch_list
     export -f error
     export -f success
     export -f info
@@ -353,9 +360,47 @@ cmd_interactive() {
     export BLUE
     export NC
 
-    # Generate branch list and launch fuzzy finder
     local script_path="$0"
-    local result=$(generate_branch_list | fzf \
+
+    # Create a named pipe (FIFO) for async branch loading
+    local fifo=$(mktemp -u)
+    mkfifo "$fifo"
+
+    # Clean up FIFO on exit
+    trap "rm -f '$fifo'" EXIT
+
+    # Background process to generate branches asynchronously
+    (
+        # First, output local branches immediately
+        generate_branch_list "local-only"
+
+        # Add a loading indicator for remote branches
+        echo -e "  \033[0;90m[Loading remote branches...]\033[0m"
+
+        # Now fetch remote branches in background
+        local current_branch=$(git branch --show-current 2>/dev/null || echo "")
+        local branches=()
+
+        # Get local branches first (for deduplication)
+        while IFS= read -r branch; do
+            branches+=("$branch|local")
+        done < <(git branch --format='%(refname:short)' 2>/dev/null)
+
+        # Now get remote-only branches
+        while IFS= read -r branch; do
+            local branch_name="${branch#origin/}"
+            # Skip if this is HEAD or if we already have it as local
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[@]} " =~ " ${branch_name}|local " ]]; then
+                format_branch_line "$branch_name" "remote" "$current_branch"
+            fi
+        done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
+    ) > "$fifo" &
+
+    local bg_pid=$!
+
+    # Launch fuzzy finder with the FIFO as input
+    # Filter out the loading indicator line from selection
+    local result=$(cat "$fifo" | fzf \
         --ansi \
         --print-query \
         --preview "$script_path __preview {}" \
@@ -363,7 +408,18 @@ cmd_interactive() {
         --prompt "Select branch > " \
         --header "[Enter] Open/Create  [Esc] Cancel  [Tip: Type new branch name or select existing]" \
         --border \
-        --height 100%)
+        --height 100% \
+        --no-select-1)
+
+    # Wait for background process to finish
+    wait $bg_pid 2>/dev/null
+
+    # Filter out loading indicator if it was selected (shouldn't happen, but just in case)
+    if [[ "$result" =~ "Loading remote branches" ]]; then
+        echo ""
+        info "Cancelled"
+        return
+    fi
 
     # Handle selection - fzf with --print-query outputs query on first line, selection on second
     if [[ -n "$result" ]]; then
