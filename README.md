@@ -18,13 +18,6 @@ curl -fsSL https://raw.githubusercontent.com/aidankinzett/homebrew-git-wt/main/g
   -o ~/.local/bin/git-wt && chmod +x ~/.local/bin/git-wt
 ```
 
-### Dependencies
-
-- [fzf](https://github.com/junegunn/fzf) - Required for interactive mode
-  ```bash
-  brew install fzf
-  ```
-
 ## Quick Start
 
 ```bash
