@@ -165,6 +165,7 @@ generate_branch_list() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
+            # Regex checks if branch already exists in array with "|local" suffix
             if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~  ${branch_name}\|local  ]]; then
                 branches+=("$branch_name|remote")
             fi
@@ -376,6 +377,7 @@ auto_prune_stale_worktrees() {
     main_worktree=$(get_main_worktree)
 
     while IFS= read -r line; do
+        # Match lines starting with "worktree" from git worktree list output
         if [[ "$line" =~ ^worktree ]]; then
             local wt_path="${line#worktree }"
 
@@ -505,6 +507,7 @@ cmd_interactive() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
+            # Regex checks if branch already exists in array with "|local" suffix
             if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~  $branch_name\|local  ]]; then
                 format_branch_line "$branch_name" "remote" "$current_branch"
             fi
