@@ -20,10 +20,11 @@ teardown() {
 @test "symlink_env_files creates symlink for .env file" {
     echo "DATABASE_URL=test" > "$SOURCE_DIR/.env"
 
-    symlink_env_files "$SOURCE_DIR" "$TARGET_DIR"
+    run symlink_env_files "$SOURCE_DIR" "$TARGET_DIR"
 
+    [ "$status" -eq 0 ]
     [ -L "$TARGET_DIR/.env" ]
-    [ "$(readlink "$TARGET_DIR/.env")" = "$SOURCE_DIR/.env" ]
+    [ "$(readlink -f "$TARGET_DIR/.env")" = "$(readlink -f "$SOURCE_DIR/.env")" ]
 }
 
 @test "symlink_env_files creates symlinks for multiple env files" {
@@ -31,8 +32,9 @@ teardown() {
     echo "PROD=true" > "$SOURCE_DIR/.env.production"
     echo "BASE=true" > "$SOURCE_DIR/.env"
 
-    symlink_env_files "$SOURCE_DIR" "$TARGET_DIR"
+    run symlink_env_files "$SOURCE_DIR" "$TARGET_DIR"
 
+    [ "$status" -eq 0 ]
     [ -L "$TARGET_DIR/.env" ]
     [ -L "$TARGET_DIR/.env.development" ]
     [ -L "$TARGET_DIR/.env.production" ]
@@ -42,8 +44,9 @@ teardown() {
     echo "SOURCE" > "$SOURCE_DIR/.env"
     echo "EXISTING" > "$TARGET_DIR/.env"
 
-    symlink_env_files "$SOURCE_DIR" "$TARGET_DIR"
+    run symlink_env_files "$SOURCE_DIR" "$TARGET_DIR"
 
+    [ "$status" -eq 0 ]
     # Should NOT be a symlink
     [ ! -L "$TARGET_DIR/.env" ]
     # Should still have original content
