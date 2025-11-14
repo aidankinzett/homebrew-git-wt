@@ -18,6 +18,8 @@ test-tap:
 lint:
 	@echo "Linting git-wt script..."
 	@shellcheck git-wt
+	@echo "Linting test files..."
+	@shellcheck test/*.bats test/*.bash
 
 # Run both lint and test
 check: lint test

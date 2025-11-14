@@ -22,7 +22,16 @@ setup_test_git_repo() {
 # Teardown test environment
 teardown_test_git_repo() {
     if [[ -n "$TEST_TEMP_DIR" ]] && [[ -d "$TEST_TEMP_DIR" ]]; then
-        rm -rf "$TEST_TEMP_DIR"
+        # Validate that TEST_TEMP_DIR is inside /tmp before removing
+        # This prevents accidental deletion if mktemp fails or returns an unexpected path
+        case "$TEST_TEMP_DIR" in
+            /tmp/*)
+                rm -rf "$TEST_TEMP_DIR"
+                ;;
+            *)
+                echo "Warning: TEST_TEMP_DIR ($TEST_TEMP_DIR) is not in /tmp, skipping cleanup" >&2
+                ;;
+        esac
     fi
 }
 
