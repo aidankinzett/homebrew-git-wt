@@ -89,7 +89,7 @@ last_line() {
         run validate_worktree_path "$base/../canonical/test" "test source"
         
         [ "$status" -eq 0 ]
-        # Should resolve to /tmp/test (or /private/tmp/test on macOS)
+        # Should resolve to "$TEST_TEMP_DIR/canonical/test" (or /private/tmp/canonical/test on macOS)
         [[ "$(last_line)" == *"/canonical/test" ]]
     else
         skip "realpath not available"
