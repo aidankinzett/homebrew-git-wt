@@ -106,6 +106,38 @@ export GIT_WT_BASE=~/custom/path
 
 **Priority order:** local git config > global git config > environment variable > default (`~/Git/.worktrees`)
 
+### Migrating Existing Worktrees
+
+If you change your worktree base path configuration, existing worktrees in the old location won't be automatically detected by git-wt. Here's how to migrate them:
+
+**Option 1: Move worktrees to the new location**
+
+```bash
+# Example: Moving from old location to new location
+OLD_PATH=~/Git/.worktrees
+NEW_PATH=~/custom/path
+
+# Move the entire project directory
+mv $OLD_PATH/my-project $NEW_PATH/my-project
+
+# Update git's worktree references
+git worktree repair
+```
+
+**Option 2: Keep worktrees in place and adjust your configuration**
+
+If you have existing worktrees you want to keep using:
+
+```bash
+# Check where your existing worktrees are
+git worktree list
+
+# Set your config to match that location
+git config --global worktree.basepath /path/to/existing/worktrees
+```
+
+**Note:** git-wt will warn you if it detects existing worktrees in different locations when you run `git-wt --list` or `git-wt`.
+
 ## Usage
 
 ### Interactive Mode

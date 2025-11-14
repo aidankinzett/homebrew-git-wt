@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Git worktree management script
-# Stores worktrees in ~/Git/.worktrees/<project-name>/<branch-name>
+# Stores worktrees in <configurable-base>/<project-name>/<branch-name>
+# Base path can be configured via git config worktree.basepath or $GIT_WT_BASE
 
 # Colors
 RED='\033[0;31m'
@@ -35,6 +36,16 @@ validate_worktree_path() {
 
     # Normalize path by removing trailing slashes
     path="${path%/}"
+
+    # Canonicalize the path to resolve '..' and prevent path traversal
+    # Use -m to allow non-existent paths (won't create them)
+    if command -v realpath &> /dev/null; then
+        path=$(realpath -m "$path" 2>/dev/null)
+        if [[ $? -ne 0 ]]; then
+            warning "Invalid path in $source: could not canonicalize path"
+            return 1
+        fi
+    fi
 
     echo "$path"
     return 0
@@ -111,12 +122,24 @@ check_worktree_migration() {
     local default_path="$HOME/Git/.worktrees"
 
     # Build list of paths to check (excluding the current one)
+    # Expand tildes and deduplicate paths
     local paths_to_check=()
+    local seen_paths=()
 
-    [[ -n "$local_config" && "${local_config/#\~/$HOME}" != "$current_base" ]] && paths_to_check+=("${local_config/#\~/$HOME}")
-    [[ -n "$global_config" && "${global_config/#\~/$HOME}" != "$current_base" ]] && paths_to_check+=("${global_config/#\~/$HOME}")
-    [[ -n "$env_var" && "${env_var/#\~/$HOME}" != "$current_base" ]] && paths_to_check+=("${env_var/#\~/$HOME}")
-    [[ "$default_path" != "$current_base" ]] && paths_to_check+=("$default_path")
+    # Helper to add path if unique and different from current
+    add_if_unique() {
+        local path="${1/#\~/$HOME}"  # Expand tilde
+        # Skip if it's the current base or already seen
+        if [[ "$path" != "$current_base" ]] && ! [[ " ${seen_paths[@]} " =~ " ${path} " ]]; then
+            paths_to_check+=("$path")
+            seen_paths+=("$path")
+        fi
+    }
+
+    [[ -n "$local_config" ]] && add_if_unique "$local_config"
+    [[ -n "$global_config" ]] && add_if_unique "$global_config"
+    [[ -n "$env_var" ]] && add_if_unique "$env_var"
+    add_if_unique "$default_path"
 
     # Check if worktrees exist in other locations
     for check_path in "${paths_to_check[@]}"; do
