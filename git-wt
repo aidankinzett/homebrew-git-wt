@@ -27,6 +27,7 @@ source "$SCRIPT_DIR/lib/commands.sh"
 
 # Base directory for all worktrees
 WORKTREE_BASE=$(get_worktree_base)
+export WORKTREE_BASE
 
 # Main command dispatcher
 main() {
