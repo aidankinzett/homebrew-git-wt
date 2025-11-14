@@ -70,6 +70,42 @@ All worktrees are stored in:
 ~/Git/.worktrees/<project-name>/<branch-name>
 ```
 
+### Auto-Pruning
+
+Automatically clean up worktrees for merged branches:
+
+```bash
+# Enable auto-pruning for current repository
+git-wt --enable-autoprune
+
+# Manually cleanup merged branches
+git-wt --cleanup
+
+# Disable auto-pruning
+git-wt --disable-autoprune
+```
+
+When enabled, git-wt automatically removes worktrees for branches that have been merged into main/master (only if there are no uncommitted changes).
+
+## Configuration
+
+### Custom Worktree Path
+
+You can customize where worktrees are stored using git config or environment variables:
+
+```bash
+# Set globally for all repositories
+git config --global worktree.basepath ~/custom/path
+
+# Set for current repository only
+git config --local worktree.basepath ~/custom/path
+
+# Or use environment variable
+export GIT_WT_BASE=~/custom/path
+```
+
+**Priority order:** local git config > global git config > environment variable > default (`~/Git/.worktrees`)
+
 ## Usage
 
 ### Interactive Mode

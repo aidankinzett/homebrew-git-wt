@@ -16,19 +16,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Worktree Storage Structure
 
-All worktrees are stored at: `~/Git/.worktrees/<project-name>/<branch-name>`
+All worktrees are stored at: `<base-path>/<project-name>/<branch-name>`
 
-Where `<project-name>` is extracted from the git remote URL (falls back to directory name if no remote).
+Where:
+- `<base-path>` is configurable (default: `~/Git/.worktrees`)
+- `<project-name>` is extracted from the git remote URL (falls back to directory name if no remote)
 
-### Key Functions (git-wt:1-380)
+**Base path priority:**
+1. Local git config: `git config --local worktree.basepath`
+2. Global git config: `git config --global worktree.basepath`
+3. Environment variable: `$GIT_WT_BASE`
+4. Default: `~/Git/.worktrees`
 
-- `get_project_name()`: Extracts project name from remote URL or directory
-- `detect_package_manager()`: Detects pnpm/yarn/npm based on lock files
-- `symlink_env_files()`: Symlinks `.env*` files from main repo to worktree
-- `cmd_add()`: Creates worktree with automatic setup (fetch, install deps, symlink env, open in Cursor)
-- `cmd_list()`: Lists all worktrees for current project
-- `cmd_remove()`: Removes worktree and cleans up empty directories
-- `cmd_prune()`: Removes stale worktree references
+### Key Functions
+
+- `get_worktree_base()` (git-wt:15-40): Gets configurable base path with priority: local config > global config > env var > default
+- `get_project_name()` (git-wt:70-83): Extracts project name from remote URL or directory
+- `detect_package_manager()` (git-wt:91-108): Detects pnpm/yarn/npm based on lock files
+- `symlink_env_files()` (git-wt:111-136): Symlinks `.env*` files from main repo to worktree
+- `cmd_add()` (git-wt:547-654): Creates worktree with automatic setup (fetch, install deps, symlink env, open in Cursor)
+- `cmd_list()` (git-wt:657-690): Lists all worktrees for current project
+- `cmd_remove()` (git-wt:693-727): Removes worktree and cleans up empty directories
+- `cmd_prune()` (git-wt:730-741): Removes stale worktree references
+- `auto_prune_stale_worktrees()` (git-wt:372-415): Automatically prunes merged branches with no uncommitted changes
 
 ## Development Commands
 
@@ -74,7 +84,7 @@ The script checks for branches in this order:
 
 This prioritization matches git's default behavior and prevents accidentally creating duplicate branches.
 
-### Package Manager Detection (git-wt:63-80)
+### Package Manager Detection (git-wt:91-108)
 
 Detection based on lock files in this order:
 1. `pnpm-lock.yaml` → pnpm
@@ -82,13 +92,13 @@ Detection based on lock files in this order:
 3. `package-lock.json` → npm
 4. Falls back to pnpm if `package.json` exists but no lock file
 
-### Environment File Symlinking (git-wt:83-108)
+### Environment File Symlinking (git-wt:111-136)
 
 - Finds all `.env` and `.env.*` files in main worktree
 - Creates symlinks in new worktree (skips if file already exists)
 - Prevents duplication of sensitive environment variables
 
-### Cursor Integration (git-wt:211-217)
+### Cursor Integration (git-wt:647-653)
 
 After creating worktree, automatically opens in Cursor if the `cursor` command is available. Falls back to printing the `cd` command if not.
 
@@ -214,66 +224,3 @@ When testing changes:
 - Configuration options
 
 The README is the primary documentation for users. Keep it in sync with the code.
-
-### Changelog Maintenance
-
-This project uses `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/) format.
-
-**When creating a PR, add an entry under `## [Unreleased]`:**
-
-```markdown
-## [Unreleased]
-
-### Added
-- New fuzzy finder mode with fzf integration
-- Interactive keybindings for delete and recreate actions
-
-### Changed
-- Command structure now supports `git-wt <branch>` direct syntax
-- Improved branch detection to prioritize local branches
-
-### Fixed
-- Fixed issue with worktree paths containing spaces
-- Corrected package manager detection for edge cases
-
-### Removed
-- Deprecated `git-wt add` in favor of direct branch syntax (still supported for compatibility)
-```
-
-**Categories:**
-- `Added` - New features
-- `Changed` - Changes to existing functionality
-- `Deprecated` - Features that will be removed in future versions
-- `Removed` - Features that have been removed
-- `Fixed` - Bug fixes
-- `Security` - Security-related changes
-
-**When releasing a new version:**
-1. Move `[Unreleased]` entries to a new version section: `## [0.2.0] - 2025-10-21`
-2. Add comparison link at the bottom of the changelog
-3. Create a git tag for the version
-
-If `CHANGELOG.md` doesn't exist yet, create it with this structure:
-
-```markdown
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
-- Initial release with basic worktree management
-
-## [0.1.0] - 2025-10-21
-
-### Added
-- Automatic worktree creation with dependency installation
-- Environment file symlinking
-- Package manager detection (pnpm/yarn/npm)
-- Cursor integration
-- List, remove, and prune commands
-```
