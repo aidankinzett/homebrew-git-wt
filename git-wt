@@ -41,14 +41,16 @@ check_git_repo() {
 # Get the project name from git repo
 get_project_name() {
     # Try to get from remote URL first
-    local remote_url=$(git config --get remote.origin.url 2>/dev/null)
+    local remote_url
+    remote_url=$(git config --get remote.origin.url 2>/dev/null)
 
+    local project_name
     if [[ -n "$remote_url" ]]; then
         # Extract project name from URL (handles both SSH and HTTPS)
-        local project_name=$(echo "$remote_url" | sed -E 's/.*[:/]([^/]+)\/([^/]+)(\.git)?$/\2/' | sed 's/\.git$//')
+        project_name=$(echo "$remote_url" | sed -E 's/.*[:/]([^/]+)\/([^/]+)(\.git)?$/\2/' | sed 's/\.git$//')
     else
         # Fallback to directory name
-        local project_name=$(basename "$(git rev-parse --show-toplevel)")
+        project_name=$(basename "$(git rev-parse --show-toplevel)")
     fi
 
     echo "$project_name"
@@ -84,7 +86,8 @@ symlink_env_files() {
     local source_dir="$1"
     local target_dir="$2"
 
-    local env_files=$(find "$source_dir" -maxdepth 1 -type f \( -name ".env" -o -name ".env.*" \) 2>/dev/null)
+    local env_files
+    env_files=$(find "$source_dir" -maxdepth 1 -type f \( -name ".env" -o -name ".env.*" \) 2>/dev/null)
 
     if [[ -z "$env_files" ]]; then
         info "No .env files found to symlink"
@@ -94,7 +97,8 @@ symlink_env_files() {
     info "Symlinking .env files..."
     while IFS= read -r env_file; do
         if [[ -n "$env_file" ]]; then
-            local filename=$(basename "$env_file")
+            local filename
+            filename=$(basename "$env_file")
             local target="$target_dir/$filename"
 
             if [[ -e "$target" ]]; then
@@ -126,7 +130,8 @@ check_fzf() {
 # Check if branch has a worktree
 has_worktree() {
     local branch="$1"
-    local project_name=$(get_project_name)
+    local project_name
+    project_name=$(get_project_name)
     local worktree_path="$WORKTREE_BASE/$project_name/$branch"
     [[ -d "$worktree_path" ]]
 }
@@ -134,7 +139,8 @@ has_worktree() {
 # Get worktree path for branch
 get_worktree_path() {
     local branch="$1"
-    local project_name=$(get_project_name)
+    local project_name
+    project_name=$(get_project_name)
     echo "$WORKTREE_BASE/$project_name/$branch"
 }
 
@@ -143,7 +149,8 @@ get_worktree_path() {
 #   $1: mode - "local-only" to only show local branches, "all" to show all branches
 generate_branch_list() {
     local mode="${1:-all}"
-    local current_branch=$(git branch --show-current 2>/dev/null || echo "")
+    local current_branch
+    current_branch=$(git branch --show-current 2>/dev/null || echo "")
 
     # Get branches based on mode
     local branches=()
@@ -158,7 +165,7 @@ generate_branch_list() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
-            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[@]} " =~ " ${branch_name}|local " ]]; then
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~ " ${branch_name}|local " ]]; then
                 branches+=("$branch_name|remote")
             fi
         done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
@@ -241,7 +248,8 @@ show_worktree_info() {
     local line="$1"
 
     # Strip ANSI color codes and extract branch name
-    local branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+    local branch
+    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
 
     if [[ -z "$branch" ]]; then
         echo "No branch selected"
@@ -252,14 +260,16 @@ show_worktree_info() {
     echo ""
 
     # Check if worktree exists
-    local worktree_path=$(get_worktree_path "$branch")
+    local worktree_path
+    worktree_path=$(get_worktree_path "$branch")
 
     if [[ -d "$worktree_path" ]]; then
         echo "Worktree: $worktree_path"
 
         # Git status
         cd "$worktree_path" 2>/dev/null || return
-        local status=$(git status --porcelain 2>/dev/null)
+        local status
+        status=$(git status --porcelain 2>/dev/null)
         if [[ -z "$status" ]]; then
             echo "Status: Clean ✓"
         else
@@ -267,18 +277,22 @@ show_worktree_info() {
         fi
 
         # Last modified time
-        local last_modified=$(find "$worktree_path" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | awk '{print $1}')
+        local last_modified
+        last_modified=$(find "$worktree_path" -type f -not -path "*/node_modules/*" -not -path "*/.git/*" -exec stat -f "%m %N" {} \; 2>/dev/null | sort -rn | head -1 | awk '{print $1}')
         if [[ -n "$last_modified" ]]; then
-            local mod_date=$(date -r "$last_modified" "+%Y-%m-%d %H:%M" 2>/dev/null)
+            local mod_date
+            mod_date=$(date -r "$last_modified" "+%Y-%m-%d %H:%M" 2>/dev/null)
             echo "Last modified: $mod_date"
         fi
 
         # Directory size
-        local total_size=$(du -sh "$worktree_path" 2>/dev/null | awk '{print $1}')
+        local total_size
+        total_size=$(du -sh "$worktree_path" 2>/dev/null | awk '{print $1}')
         echo "Size: $total_size"
 
         if [[ -d "$worktree_path/node_modules" ]]; then
-            local nm_size=$(du -sh "$worktree_path/node_modules" 2>/dev/null | awk '{print $1}')
+            local nm_size
+            nm_size=$(du -sh "$worktree_path/node_modules" 2>/dev/null | awk '{print $1}')
             echo "  (node_modules: $nm_size)"
         fi
 
@@ -303,12 +317,14 @@ show_worktree_info() {
             git log --oneline --color=always -n 3 "origin/$branch" 2>/dev/null | sed 's/^/  /' || echo "  Unable to fetch commits"
         else
             # New branch - show what it will be created from
-            local current_branch=$(git branch --show-current 2>/dev/null)
+            local current_branch
+            current_branch=$(git branch --show-current 2>/dev/null)
             if [[ -n "$current_branch" ]]; then
                 echo "Branch type: New (will be created from '$current_branch')"
             else
                 # Detached HEAD - show commit hash
-                local commit_hash=$(git rev-parse --short HEAD 2>/dev/null)
+                local commit_hash
+                commit_hash=$(git rev-parse --short HEAD 2>/dev/null)
                 echo "Branch type: New (will be created from commit $commit_hash)"
             fi
         fi
@@ -321,7 +337,8 @@ is_worktree_stale() {
     local worktree_path="$2"
 
     # Determine main branch name
-    local main_branch=$(git config --get init.defaultBranch 2>/dev/null || echo "main")
+    local main_branch
+    main_branch=$(git config --get init.defaultBranch 2>/dev/null || echo "main")
 
     # Try main, fallback to master if main doesn't exist
     if ! git show-ref --verify --quiet "refs/heads/$main_branch" 2>/dev/null; then
@@ -342,14 +359,16 @@ is_worktree_stale() {
 
 # Auto-prune stale worktrees (merged branches with no uncommitted changes)
 auto_prune_stale_worktrees() {
-    local project_name=$(get_project_name)
+    local project_name
+    project_name=$(get_project_name)
     local pruned=0
     local space_freed=0
 
     # Get list of worktrees (skip main worktree)
-    local main_worktree=$(get_main_worktree)
+    local main_worktree
+    main_worktree=$(get_main_worktree)
 
-    git worktree list --porcelain 2>/dev/null | while IFS= read -r line; do
+    while IFS= read -r line; do
         if [[ "$line" =~ ^worktree ]]; then
             local wt_path="${line#worktree }"
 
@@ -357,12 +376,14 @@ auto_prune_stale_worktrees() {
             [[ "$wt_path" == "$main_worktree" ]] && continue
 
             # Get branch for this worktree
-            local branch=$(git -C "$wt_path" branch --show-current 2>/dev/null)
+            local branch
+            branch=$(git -C "$wt_path" branch --show-current 2>/dev/null)
 
             # Check if stale and prune
             if [[ -n "$branch" ]] && is_worktree_stale "$branch" "$wt_path"; then
                 # Calculate size before removal (in KB)
-                local size=$(du -sk "$wt_path" 2>/dev/null | awk '{print $1}')
+                local size
+                size=$(du -sk "$wt_path" 2>/dev/null | awk '{print $1}')
 
                 # Remove worktree
                 if git worktree remove --force "$wt_path" 2>/dev/null; then
@@ -370,14 +391,15 @@ auto_prune_stale_worktrees() {
                     space_freed=$((space_freed + size))
 
                     # Clean up empty parent directories
-                    local parent_dir="$(dirname "$wt_path")"
+                    local parent_dir
+                    parent_dir="$(dirname "$wt_path")"
                     if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
                         rmdir "$parent_dir" 2>/dev/null
                     fi
                 fi
             fi
         fi
-    done
+    done < <(git worktree list --porcelain 2>/dev/null)
 
     # Report if anything was pruned
     if [[ $pruned -gt 0 ]]; then
@@ -391,14 +413,16 @@ open_or_create_worktree() {
     local line="$1"
 
     # Strip ANSI color codes and extract branch name
-    local branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+    local branch
+    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
 
     if [[ -z "$branch" ]]; then
         error "No branch selected"
         return 1
     fi
 
-    local worktree_path=$(get_worktree_path "$branch")
+    local worktree_path
+    worktree_path=$(get_worktree_path "$branch")
 
     # If worktree exists, just open it
     if [[ -d "$worktree_path" ]]; then
@@ -448,11 +472,12 @@ cmd_interactive() {
     local script_path="$0"
 
     # Create a named pipe (FIFO) for async branch loading
-    local fifo=$(mktemp -u)
+    local fifo
+    fifo=$(mktemp -u)
     mkfifo "$fifo"
 
     # Clean up FIFO on exit
-    trap "rm -f '$fifo'" EXIT
+    trap 'rm -f "$fifo"' EXIT
 
     # Background process to generate branches asynchronously
     (
@@ -460,7 +485,8 @@ cmd_interactive() {
         generate_branch_list "local-only"
 
         # Now fetch remote branches in background
-        local current_branch=$(git branch --show-current 2>/dev/null || echo "")
+        local current_branch
+        current_branch=$(git branch --show-current 2>/dev/null || echo "")
         local branches=()
 
         # Get local branches first (for deduplication)
@@ -472,7 +498,7 @@ cmd_interactive() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
-            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[@]} " =~ " ${branch_name}|local " ]]; then
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~ " $branch_name|local " ]]; then
                 format_branch_line "$branch_name" "remote" "$current_branch"
             fi
         done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
@@ -481,7 +507,7 @@ cmd_interactive() {
     local bg_pid=$!
 
     # Launch fuzzy finder with the FIFO as input
-    local result=$(cat "$fifo" | fzf \
+    local result=$(fzf \
         --ansi \
         --print-query \
         --preview "$script_path __preview {}" \
@@ -490,15 +516,17 @@ cmd_interactive() {
         --header "[Enter] Open/Create  [Esc] Cancel" \
         --border \
         --height 100% \
-        --no-select-1)
+        --no-select-1 < "$fifo")
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null
 
     # Handle selection - fzf with --print-query outputs query on first line, selection on second
     if [[ -n "$result" ]]; then
-        local query=$(echo "$result" | head -n 1)
-        local selected=$(echo "$result" | sed -n '2p')
+        local query
+        query=$(echo "$result" | head -n 1)
+        local selected
+        selected=$(echo "$result" | sed -n '2p')
 
         echo ""
         # If user selected an item from the list, use that. Otherwise use the query (new branch name)
@@ -527,9 +555,11 @@ cmd_add() {
 
     check_git_repo
 
-    local project_name=$(get_project_name)
+    local project_name
+    project_name=$(get_project_name)
     local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
-    local main_worktree=$(get_main_worktree)
+    local main_worktree
+    main_worktree=$(get_main_worktree)
 
     # Check if worktree already exists
     if [[ -d "$worktree_path" ]]; then
@@ -549,8 +579,10 @@ cmd_add() {
     fi
 
     # Check if branch exists on remote
-    local remote_branch_exists=$(git ls-remote --heads origin "$branch_name" 2>/dev/null)
-    local local_branch_exists=$(git show-ref --verify --quiet "refs/heads/$branch_name" && echo "yes" || echo "no")
+    local remote_branch_exists
+    remote_branch_exists=$(git ls-remote --heads origin "$branch_name" 2>/dev/null)
+    local local_branch_exists
+    local_branch_exists=$(git show-ref --verify --quiet "refs/heads/$branch_name" && echo "yes" || echo "no")
 
     info "Creating worktree for branch '$branch_name'..."
 
@@ -585,7 +617,8 @@ cmd_add() {
     symlink_env_files "$main_worktree" "$worktree_path"
 
     # Detect and run package manager
-    local pkg_manager=$(detect_package_manager "$worktree_path")
+    local pkg_manager
+    pkg_manager=$(detect_package_manager "$worktree_path")
 
     if [[ -n "$pkg_manager" ]]; then
         info "Detected package manager: $pkg_manager"
@@ -595,21 +628,27 @@ cmd_add() {
 
         case "$pkg_manager" in
             pnpm)
-                pnpm install
+                if pnpm install; then
+                    success "Dependencies installed successfully"
+                else
+                    warning "Failed to install dependencies"
+                fi
                 ;;
             yarn)
-                yarn install
+                if yarn install; then
+                    success "Dependencies installed successfully"
+                else
+                    warning "Failed to install dependencies"
+                fi
                 ;;
             npm)
-                npm install
+                if npm install; then
+                    success "Dependencies installed successfully"
+                else
+                    warning "Failed to install dependencies"
+                fi
                 ;;
         esac
-
-        if [[ $? -eq 0 ]]; then
-            success "Dependencies installed successfully"
-        else
-            warning "Failed to install dependencies"
-        fi
     fi
 
     echo ""
@@ -629,15 +668,18 @@ cmd_add() {
 cmd_list() {
     check_git_repo
 
-    local project_name=$(get_project_name)
+    local project_name
+    project_name=$(get_project_name)
     local project_worktrees="$WORKTREE_BASE/$project_name"
 
     info "Worktrees for project '$project_name':"
     echo ""
 
     git worktree list | while IFS= read -r line; do
-        local path=$(echo "$line" | awk '{print $1}')
-        local branch=$(echo "$line" | awk '{print $3}' | tr -d '[]')
+        local path
+        path=$(echo "$line" | awk '{print $1}')
+        local branch
+        branch=$(echo "$line" | awk '{print $3}' | tr -d '[]')
         local main_marker=""
 
         if echo "$line" | grep -q "(bare)"; then
@@ -673,7 +715,8 @@ cmd_remove() {
 
     check_git_repo
 
-    local project_name=$(get_project_name)
+    local project_name
+    project_name=$(get_project_name)
     local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
 
     if [[ ! -d "$worktree_path" ]]; then
@@ -687,7 +730,8 @@ cmd_remove() {
         success "Worktree removed successfully"
 
         # Clean up empty parent directories
-        local parent_dir="$(dirname "$worktree_path")"
+        local parent_dir
+        parent_dir="$(dirname "$worktree_path")"
         if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir")" ]]; then
             rmdir "$parent_dir"
             info "Cleaned up empty directory: $parent_dir"
