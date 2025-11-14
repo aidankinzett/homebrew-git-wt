@@ -18,20 +18,23 @@ validate_worktree_path() {
     # Expand tilde
     path="${path/#\~/$HOME}"
 
-    # Check for dangerous characters (basic sanitization)
-    if [[ "$path" =~ [;\|\&\$\`] ]]; then
-        error "Invalid path in $source: contains dangerous characters"
-        error "Path should not contain: ; | & \$ \`"
+    # Check for dangerous characters including control characters and newlines
+    if [[ "$path" =~ [;\|\&\$\`[:cntrl:]] ]]; then
+        warning "Invalid path in $source: contains dangerous characters"
+        warning "Path should not contain: ; | & \$ \` or control characters"
         return 1
     fi
 
     # Check if path is absolute
     if [[ "$path" != /* ]]; then
-        error "Invalid path in $source: must be an absolute path"
-        error "Got: $path"
-        error "Expected path starting with /"
+        warning "Invalid path in $source: must be an absolute path"
+        warning "Got: $path"
+        warning "Expected path starting with /"
         return 1
     fi
+
+    # Normalize path by removing trailing slashes
+    path="${path%/}"
 
     echo "$path"
     return 0
@@ -50,9 +53,10 @@ get_worktree_base() {
         if [[ $? -eq 0 ]]; then
             echo "$validated_path"
             return
-        else
-            exit 1
         fi
+        # Invalid config - fall through to next option
+        warning "Falling back to next configuration option..."
+        echo "" >&2  # Add blank line for readability
     fi
 
     # Try global git config
@@ -62,9 +66,10 @@ get_worktree_base() {
         if [[ $? -eq 0 ]]; then
             echo "$validated_path"
             return
-        else
-            exit 1
         fi
+        # Invalid config - fall through to next option
+        warning "Falling back to next configuration option..."
+        echo "" >&2  # Add blank line for readability
     fi
 
     # Try environment variable
@@ -73,9 +78,10 @@ get_worktree_base() {
         if [[ $? -eq 0 ]]; then
             echo "$validated_path"
             return
-        else
-            exit 1
         fi
+        # Invalid config - fall through to default
+        warning "Falling back to default path..."
+        echo "" >&2  # Add blank line for readability
     fi
 
     # Default
@@ -84,6 +90,57 @@ get_worktree_base() {
 
 # Base directory for all worktrees
 WORKTREE_BASE=$(get_worktree_base)
+
+# Check for worktrees in different locations and warn about migration
+check_worktree_migration() {
+    local project_name=$(get_project_name 2>/dev/null)
+
+    # Only check if we can get the project name (we're in a git repo)
+    if [[ -z "$project_name" ]]; then
+        return
+    fi
+
+    local current_base="$WORKTREE_BASE"
+    local found_elsewhere=false
+    local other_locations=()
+
+    # Check all possible configuration sources for different paths
+    local local_config=$(git config --local --get worktree.basepath 2>/dev/null)
+    local global_config=$(git config --global --get worktree.basepath 2>/dev/null)
+    local env_var="$GIT_WT_BASE"
+    local default_path="$HOME/Git/.worktrees"
+
+    # Build list of paths to check (excluding the current one)
+    local paths_to_check=()
+
+    [[ -n "$local_config" && "${local_config/#\~/$HOME}" != "$current_base" ]] && paths_to_check+=("${local_config/#\~/$HOME}")
+    [[ -n "$global_config" && "${global_config/#\~/$HOME}" != "$current_base" ]] && paths_to_check+=("${global_config/#\~/$HOME}")
+    [[ -n "$env_var" && "${env_var/#\~/$HOME}" != "$current_base" ]] && paths_to_check+=("${env_var/#\~/$HOME}")
+    [[ "$default_path" != "$current_base" ]] && paths_to_check+=("$default_path")
+
+    # Check if worktrees exist in other locations
+    for check_path in "${paths_to_check[@]}"; do
+        local project_dir="$check_path/$project_name"
+        if [[ -d "$project_dir" ]] && [[ -n "$(ls -A "$project_dir" 2>/dev/null)" ]]; then
+            found_elsewhere=true
+            other_locations+=("$project_dir")
+        fi
+    done
+
+    # Show migration warning if worktrees found elsewhere
+    if [[ "$found_elsewhere" == "true" ]]; then
+        echo "" >&2
+        warning "Migration Notice: Existing worktrees found in different location(s):"
+        for location in "${other_locations[@]}"; do
+            echo -e "  ${YELLOW}•${NC} $location" >&2
+        done
+        echo "" >&2
+        info "Current worktree base: $current_base" >&2
+        info "Existing worktrees in the old location(s) won't be detected by git-wt." >&2
+        info "You may want to move them to the new location or adjust your configuration." >&2
+        echo "" >&2
+    fi
+}
 
 # Print colored messages
 error() {
@@ -492,6 +549,9 @@ cmd_interactive() {
     check_git_repo
     check_fzf
 
+    # Check for migration notice
+    check_worktree_migration
+
     # Start async auto-prune if enabled
     if [[ "$(git config --get worktree.autoprune 2>/dev/null)" == "true" ]]; then
         # Fork to background, redirect output to temp log
@@ -700,6 +760,9 @@ cmd_add() {
 # List all worktrees for current project
 cmd_list() {
     check_git_repo
+
+    # Check for migration notice
+    check_worktree_migration
 
     local project_name=$(get_project_name)
     local project_worktrees="$WORKTREE_BASE/$project_name"
