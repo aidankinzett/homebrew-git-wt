@@ -10,29 +10,72 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Validate and sanitize a path for use as worktree base
+validate_worktree_path() {
+    local path="$1"
+    local source="$2"  # For error messages: "local config", "global config", "environment variable"
+
+    # Expand tilde
+    path="${path/#\~/$HOME}"
+
+    # Check for dangerous characters (basic sanitization)
+    if [[ "$path" =~ [;\|\&\$\`] ]]; then
+        error "Invalid path in $source: contains dangerous characters"
+        error "Path should not contain: ; | & \$ \`"
+        return 1
+    fi
+
+    # Check if path is absolute
+    if [[ "$path" != /* ]]; then
+        error "Invalid path in $source: must be an absolute path"
+        error "Got: $path"
+        error "Expected path starting with /"
+        return 1
+    fi
+
+    echo "$path"
+    return 0
+}
+
 # Get base directory for all worktrees
 # Priority: local git config > global git config > environment variable > default
 get_worktree_base() {
     local base_path
+    local validated_path
 
     # Try local git config first
     base_path=$(git config --local --get worktree.basepath 2>/dev/null)
     if [[ -n "$base_path" ]]; then
-        echo "${base_path/#\~/$HOME}"
-        return
+        validated_path=$(validate_worktree_path "$base_path" "local git config")
+        if [[ $? -eq 0 ]]; then
+            echo "$validated_path"
+            return
+        else
+            exit 1
+        fi
     fi
 
     # Try global git config
     base_path=$(git config --global --get worktree.basepath 2>/dev/null)
     if [[ -n "$base_path" ]]; then
-        echo "${base_path/#\~/$HOME}"
-        return
+        validated_path=$(validate_worktree_path "$base_path" "global git config")
+        if [[ $? -eq 0 ]]; then
+            echo "$validated_path"
+            return
+        else
+            exit 1
+        fi
     fi
 
     # Try environment variable
     if [[ -n "$GIT_WT_BASE" ]]; then
-        echo "${GIT_WT_BASE/#\~/$HOME}"
-        return
+        validated_path=$(validate_worktree_path "$GIT_WT_BASE" "environment variable GIT_WT_BASE")
+        if [[ $? -eq 0 ]]; then
+            echo "$validated_path"
+            return
+        else
+            exit 1
+        fi
     fi
 
     # Default
@@ -741,9 +784,76 @@ cmd_prune() {
     fi
 }
 
+# Show current configuration
+cmd_config() {
+    info "Git Worktree Configuration"
+    echo ""
+
+    # Show current base path
+    echo -e "${BLUE}Current worktree base path:${NC}"
+    echo "  $WORKTREE_BASE"
+    echo ""
+
+    # Show source of configuration
+    local local_config=$(git config --local --get worktree.basepath 2>/dev/null)
+    local global_config=$(git config --global --get worktree.basepath 2>/dev/null)
+    local env_var="$GIT_WT_BASE"
+
+    echo -e "${BLUE}Configuration sources (in priority order):${NC}"
+
+    if [[ -n "$local_config" ]]; then
+        echo -e "  ${GREEN}✓${NC} Local git config:  $local_config ${GREEN}[active]${NC}"
+    else
+        echo -e "    Local git config:  ${YELLOW}(not set)${NC}"
+    fi
+
+    if [[ -n "$global_config" ]]; then
+        if [[ -z "$local_config" ]]; then
+            echo -e "  ${GREEN}✓${NC} Global git config: $global_config ${GREEN}[active]${NC}"
+        else
+            echo -e "    Global git config: $global_config ${YELLOW}(overridden by local)${NC}"
+        fi
+    else
+        echo -e "    Global git config: ${YELLOW}(not set)${NC}"
+    fi
+
+    if [[ -n "$env_var" ]]; then
+        if [[ -z "$local_config" ]] && [[ -z "$global_config" ]]; then
+            echo -e "  ${GREEN}✓${NC} Environment var:   $env_var ${GREEN}[active]${NC}"
+        else
+            echo -e "    Environment var:   $env_var ${YELLOW}(overridden)${NC}"
+        fi
+    else
+        echo -e "    Environment var:   ${YELLOW}(not set)${NC}"
+    fi
+
+    if [[ -z "$local_config" ]] && [[ -z "$global_config" ]] && [[ -z "$env_var" ]]; then
+        echo -e "  ${GREEN}✓${NC} Default:           $HOME/Git/.worktrees ${GREEN}[active]${NC}"
+    else
+        echo -e "    Default:           $HOME/Git/.worktrees"
+    fi
+
+    echo ""
+
+    # Show auto-prune status
+    local autoprune=$(git config --get worktree.autoprune 2>/dev/null)
+    echo -e "${BLUE}Auto-pruning:${NC}"
+    if [[ "$autoprune" == "true" ]]; then
+        echo -e "  ${GREEN}✓ Enabled${NC}"
+    else
+        echo -e "  ${YELLOW}✗ Disabled${NC}"
+    fi
+
+    echo ""
+    info "To change configuration:"
+    echo "  git config --global worktree.basepath <path>  # Set globally"
+    echo "  git config --local worktree.basepath <path>   # Set for this repo"
+    echo "  export GIT_WT_BASE=<path>                     # Set via environment"
+}
+
 # Show help
 cmd_help() {
-    cat << 'EOF'
+    cat << EOF
 git-wt - Git worktree management tool
 
 USAGE:
@@ -757,7 +867,7 @@ MODES:
                         - Press Enter to create or open worktree
 
   git-wt <branch-name>  Directly create or open worktree for specified branch
-                        - Creates worktree at ~/Git/.worktrees/<project>/<branch>
+                        - Creates worktree at ${WORKTREE_BASE}/<project>/<branch>
                         - Symlinks all .env* files from main repo
                         - Detects and runs package manager install
                         - Opens in Cursor (if available)
@@ -769,6 +879,7 @@ OPTIONS:
   --cleanup                Manually prune merged branch worktrees
   --enable-autoprune       Enable automatic pruning for this repo
   --disable-autoprune      Disable automatic pruning for this repo
+  --config                 Show current configuration
   --help, -h               Show this help message
 
 EXAMPLES:
@@ -793,6 +904,9 @@ EXAMPLES:
   # Manually cleanup merged branch worktrees
   git-wt --cleanup
 
+  # Show current configuration
+  git-wt --config
+
 AUTO-PRUNING:
   When enabled, git-wt automatically removes worktrees for branches that have been
   merged into main/master. This happens in the background when running git-wt.
@@ -804,7 +918,7 @@ AUTO-PRUNING:
   Manual:  git-wt --cleanup
 
 LOCATION:
-  All worktrees are stored in: ~/Git/.worktrees/<project-name>/<branch-name>
+  All worktrees are stored in: ${WORKTREE_BASE}/<project-name>/<branch-name>
 
 CONFIGURATION:
   You can customize the worktree storage location:
@@ -860,6 +974,9 @@ main() {
             check_git_repo
             info "Checking for stale worktrees..."
             auto_prune_stale_worktrees
+            ;;
+        --config)
+            cmd_config
             ;;
         --help|-h|help)
             cmd_help
