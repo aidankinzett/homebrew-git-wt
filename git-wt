@@ -165,7 +165,7 @@ generate_branch_list() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
-            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~ " ${branch_name}|local " ]]; then
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~  ${branch_name}\|local  ]]; then
                 branches+=("$branch_name|remote")
             fi
         done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
@@ -498,7 +498,7 @@ cmd_interactive() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
-            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~ " $branch_name|local " ]]; then
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~  $branch_name\|local  ]]; then
                 format_branch_line "$branch_name" "remote" "$current_branch"
             fi
         done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
@@ -507,7 +507,8 @@ cmd_interactive() {
     local bg_pid=$!
 
     # Launch fuzzy finder with the FIFO as input
-    local result=$(fzf \
+    local result
+    result=$(fzf \
         --ansi \
         --print-query \
         --preview "$script_path __preview {}" \
