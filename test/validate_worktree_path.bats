@@ -18,6 +18,7 @@ last_line() {
 }
 
 @test "validate_worktree_path expands tilde to home directory" {
+    # shellcheck disable=SC2088  # Provide literal tilde to test expansion
     run validate_worktree_path "~/test/path" "test source"
     
     [ "$status" -eq 0 ]

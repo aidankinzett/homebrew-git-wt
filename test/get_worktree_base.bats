@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2030,SC2031  # Bats runs each test in a subshell
 
 # Tests for get_worktree_base function
 
@@ -91,6 +92,7 @@ last_line() {
 }
 
 @test "get_worktree_base expands tilde in local config" {
+    # shellcheck disable=SC2088  # Store literal tilde to verify script expansion
     git config --local worktree.basepath "~/custom/worktrees"
     
     run get_worktree_base
@@ -100,6 +102,7 @@ last_line() {
 }
 
 @test "get_worktree_base expands tilde in global config" {
+    # shellcheck disable=SC2088  # Store literal tilde to verify script expansion
     git config --global worktree.basepath "~/custom/worktrees"
     
     run get_worktree_base
@@ -109,6 +112,7 @@ last_line() {
 }
 
 @test "get_worktree_base expands tilde in environment variable" {
+    # shellcheck disable=SC2088  # Provide literal tilde for validate_worktree_path
     export GIT_WT_BASE="~/custom/worktrees"
     
     run get_worktree_base

@@ -49,6 +49,7 @@ teardown() {
 }
 
 refresh_worktree_base() {
+    # shellcheck disable=SC2034  # WORKTREE_BASE is used by sourced git-wt script
     WORKTREE_BASE=$(get_worktree_base)
 }
 
