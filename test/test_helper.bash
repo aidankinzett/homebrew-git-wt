@@ -2,9 +2,13 @@
 
 # Setup test environment
 setup_test_git_repo() {
+    export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
     TEST_TEMP_DIR="$(mktemp -d)"
     export TEST_TEMP_DIR
     cd "$TEST_TEMP_DIR" || return
+
+    export HOME="$TEST_TEMP_DIR/home"
+    mkdir -p "$HOME"
 
     git init
     git config user.name "Test User"
