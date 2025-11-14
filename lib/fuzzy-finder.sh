@@ -267,9 +267,10 @@ delete_worktree_interactive() {
     fi
 
     # Check for uncommitted changes
-    cd "$worktree_path" 2>/dev/null || return 1
     local status
-    status=$(git status --porcelain 2>/dev/null)
+    if ! status=$(cd "$worktree_path" 2>/dev/null && git status --porcelain 2>/dev/null); then
+        return 1
+    fi
 
     if [[ -n "$status" ]]; then
         # Has uncommitted changes - show warning and ask for confirmation
@@ -330,9 +331,10 @@ recreate_worktree() {
     info "Recreating worktree for branch '$branch'..." >&2
 
     # Check for uncommitted changes
-    cd "$worktree_path" 2>/dev/null || return 1
     local status
-    status=$(git status --porcelain 2>/dev/null)
+    if ! status=$(cd "$worktree_path" 2>/dev/null && git status --porcelain 2>/dev/null); then
+        return 1
+    fi
 
     if [[ -n "$status" ]]; then
         # Has uncommitted changes - show warning and ask for confirmation
