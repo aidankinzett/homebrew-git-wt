@@ -2,8 +2,9 @@
 
 # Setup test environment
 setup_test_git_repo() {
-    export TEST_TEMP_DIR="$(mktemp -d)"
-    cd "$TEST_TEMP_DIR"
+    TEST_TEMP_DIR="$(mktemp -d)"
+    export TEST_TEMP_DIR
+    cd "$TEST_TEMP_DIR" || return
 
     git init
     git config user.name "Test User"
@@ -38,5 +39,6 @@ teardown_test_git_repo() {
 # Load git-wt script functions for testing
 load_git_wt() {
     # Source the main script to make functions available
+    # shellcheck disable=SC1091
     source "$BATS_TEST_DIRNAME/../git-wt"
 }
