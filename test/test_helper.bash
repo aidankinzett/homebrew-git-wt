@@ -9,6 +9,10 @@ setup_test_git_repo() {
     git config user.name "Test User"
     git config user.email "test@example.com"
 
+    # Disable commit signing for tests
+    git config commit.gpgsign false
+    git config tag.gpgsign false
+
     # Create initial commit
     echo "# Test Repo" > README.md
     git add README.md

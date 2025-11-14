@@ -45,7 +45,7 @@ get_project_name() {
 
     if [[ -n "$remote_url" ]]; then
         # Extract project name from URL (handles both SSH and HTTPS)
-        local project_name=$(echo "$remote_url" | sed -E 's/.*[:/]([^/]+)\/([^/]+)(\.git)?$/\2/')
+        local project_name=$(echo "$remote_url" | sed -E 's/.*[:/]([^/]+)\/([^/]+)(\.git)?$/\2/' | sed 's/\.git$//')
     else
         # Fallback to directory name
         local project_name=$(basename "$(git rev-parse --show-toplevel)")
@@ -832,4 +832,7 @@ main() {
     esac
 }
 
-main "$@"
+# Only run main if script is executed directly (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
