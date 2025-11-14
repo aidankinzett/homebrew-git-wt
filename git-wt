@@ -45,6 +45,13 @@ validate_worktree_path() {
             warning "Invalid path in $source: could not canonicalize path"
             return 1
         fi
+    else
+        # Fallback: warn user that realpath is not available
+        # Basic path normalization - remove trailing slashes and collapse multiple slashes
+        warning "realpath command not found - path traversal protection is limited"
+        warning "Install 'realpath' for better security (brew install coreutils on macOS)"
+        # Basic normalization: collapse multiple slashes and remove trailing slash
+        path=$(echo "$path" | sed 's#/\+#/#g' | sed 's#/$##')
     fi
 
     echo "$path"
@@ -128,12 +135,28 @@ check_worktree_migration() {
 
     # Helper to add path if unique and different from current
     add_if_unique() {
-        local path="${1/#\~/$HOME}"  # Expand tilde
-        # Skip if it's the current base or already seen
-        if [[ "$path" != "$current_base" ]] && ! [[ " ${seen_paths[@]} " =~ " ${path} " ]]; then
-            paths_to_check+=("$path")
-            seen_paths+=("$path")
+        local path="$1"
+        # Only expand tilde if path isn't already absolute (avoid double expansion)
+        if [[ "$path" == "~"* ]]; then
+            path="${path/#\~/$HOME}"
         fi
+
+        # Skip if it's the current base (which is already expanded)
+        if [[ "$path" == "$current_base" ]]; then
+            return
+        fi
+
+        # Check if already seen (safe for empty array)
+        local seen_path
+        for seen_path in "${seen_paths[@]}"; do
+            if [[ "$seen_path" == "$path" ]]; then
+                return
+            fi
+        done
+
+        # Add to both arrays
+        paths_to_check+=("$path")
+        seen_paths+=("$path")
     }
 
     [[ -n "$local_config" ]] && add_if_unique "$local_config"
