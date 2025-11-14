@@ -1,0 +1,29 @@
+# Test helper functions and setup
+
+# Setup test environment
+setup_test_git_repo() {
+    export TEST_TEMP_DIR="$(mktemp -d)"
+    cd "$TEST_TEMP_DIR"
+
+    git init
+    git config user.name "Test User"
+    git config user.email "test@example.com"
+
+    # Create initial commit
+    echo "# Test Repo" > README.md
+    git add README.md
+    git commit -m "Initial commit"
+}
+
+# Teardown test environment
+teardown_test_git_repo() {
+    if [[ -n "$TEST_TEMP_DIR" ]] && [[ -d "$TEST_TEMP_DIR" ]]; then
+        rm -rf "$TEST_TEMP_DIR"
+    fi
+}
+
+# Load git-wt script functions for testing
+load_git_wt() {
+    # Source the main script to make functions available
+    source "$BATS_TEST_DIRNAME/../git-wt"
+}

@@ -1,5 +1,7 @@
 # git-wt
 
+[![Tests](https://github.com/aidankinzett/homebrew-git-wt/actions/workflows/test.yml/badge.svg)](https://github.com/aidankinzett/homebrew-git-wt/actions/workflows/test.yml)
+
 Interactive git worktree manager with automatic dependency installation and smart cleanup.
 
 ## Installation
@@ -100,6 +102,36 @@ git-wt --remove <branch-name>  # or -r
 
 ```bash
 git-wt --prune  # or -p
+```
+
+## Development
+
+### Running Tests
+
+```bash
+# Install bats (macOS)
+brew install bats-core
+
+# Run all tests
+make test
+
+# Run tests with verbose output
+make test-verbose
+
+# Run lint + test
+make check
+```
+
+See [test/README.md](test/README.md) for more details on testing.
+
+### Linting
+
+```bash
+# Install shellcheck (macOS)
+brew install shellcheck
+
+# Run linter
+make lint
 ```
 
 ## License
