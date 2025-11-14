@@ -7,6 +7,7 @@ class GitWt < Formula
 
   def install
     bin.install "git-wt"
+    bin.install "lib"
   end
 
   test do
