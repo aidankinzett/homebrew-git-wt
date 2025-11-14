@@ -165,8 +165,8 @@ generate_branch_list() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
-            # Regex checks if branch already exists in array with "|local" suffix
-            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~  ${branch_name}\|local  ]]; then
+            # Check if branch already exists in array with "|local" suffix using literal string match
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " == *" $branch_name|local "* ]]; then
                 branches+=("$branch_name|remote")
             fi
         done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
@@ -507,8 +507,8 @@ cmd_interactive() {
         while IFS= read -r branch; do
             local branch_name="${branch#origin/}"
             # Skip if this is HEAD or if we already have it as local
-            # Regex checks if branch already exists in array with "|local" suffix
-            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " =~  $branch_name\|local  ]]; then
+            # Check if branch already exists in array with "|local" suffix using literal string match
+            if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " == *" $branch_name|local "* ]]; then
                 format_branch_line "$branch_name" "remote" "$current_branch"
             fi
         done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
