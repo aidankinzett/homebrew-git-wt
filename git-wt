@@ -18,20 +18,20 @@ get_worktree_base() {
     # Try local git config first
     base_path=$(git config --local --get worktree.basepath 2>/dev/null)
     if [[ -n "$base_path" ]]; then
-        echo "$base_path"
+        echo "${base_path/#\~/$HOME}"
         return
     fi
 
     # Try global git config
     base_path=$(git config --global --get worktree.basepath 2>/dev/null)
     if [[ -n "$base_path" ]]; then
-        echo "$base_path"
+        echo "${base_path/#\~/$HOME}"
         return
     fi
 
     # Try environment variable
     if [[ -n "$GIT_WT_BASE" ]]; then
-        echo "$GIT_WT_BASE"
+        echo "${GIT_WT_BASE/#\~/$HOME}"
         return
     fi
 
