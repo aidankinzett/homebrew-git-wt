@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 # Tests for fuzzy finder delete and recreate functionality
+# shellcheck disable=SC1091
 
 load test_helper
 
@@ -88,7 +89,8 @@ teardown() {
     # Create a worktree
     local branch="feature/cleanup"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-    local parent_dir="$(dirname "$worktree_path")"
+    local parent_dir
+    parent_dir="$(dirname "$worktree_path")"
 
     mkdir -p "$parent_dir"
     git worktree add "$worktree_path" -b "$branch"
@@ -100,8 +102,8 @@ teardown() {
     run delete_worktree_interactive "feature/cleanup"
 
     [ "$status" -eq 0 ]
-    # Parent should still exist (only removes if empty)
-    [ -d "$parent_dir" ]
+    # Parent should be removed (it's empty after deletion)
+    [ ! -d "$parent_dir" ]
 }
 
 @test "delete_worktree_interactive prompts for confirmation with uncommitted changes" {
@@ -116,7 +118,7 @@ teardown() {
     echo "dirty content" > "$worktree_path/dirty.txt"
 
     # Try to delete (simulate 'N' response)
-    run bash -c "echo 'N' | delete_worktree_interactive 'feature/dirty'"
+    run delete_worktree_interactive 'feature/dirty' <<< 'N'
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"uncommitted changes"* ]]
@@ -136,7 +138,7 @@ teardown() {
     echo "dirty content" > "$worktree_path/dirty.txt"
 
     # Delete with 'y' response
-    run bash -c "echo 'y' | delete_worktree_interactive 'feature/force-delete'"
+    run delete_worktree_interactive 'feature/force-delete' <<< 'y'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Deleted worktree"* ]]
@@ -189,7 +191,7 @@ teardown() {
     echo "dirty content" > "$worktree_path/dirty.txt"
 
     # Try to recreate (simulate 'N' response)
-    run bash -c "echo 'N' | recreate_worktree 'feature/recreate-dirty'"
+    run recreate_worktree 'feature/recreate-dirty' <<< 'N'
 
     [ "$status" -eq 1 ]
     [[ "$output" == *"uncommitted changes"* ]]
