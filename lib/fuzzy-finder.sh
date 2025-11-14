@@ -244,6 +244,133 @@ open_or_create_worktree() {
     fi
 }
 
+# Delete worktree (called from fuzzy finder)
+delete_worktree_interactive() {
+    local line="$1"
+
+    # Strip ANSI color codes and extract branch name
+    local branch
+    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        error "No branch selected" >&2
+        return 1
+    fi
+
+    local worktree_path
+    worktree_path=$(get_worktree_path "$branch")
+
+    # Check if worktree exists
+    if [[ ! -d "$worktree_path" ]]; then
+        error "Worktree does not exist for branch '$branch'" >&2
+        return 1
+    fi
+
+    # Check for uncommitted changes
+    cd "$worktree_path" 2>/dev/null || return 1
+    local status
+    status=$(git status --porcelain 2>/dev/null)
+
+    if [[ -n "$status" ]]; then
+        # Has uncommitted changes - show warning and ask for confirmation
+        echo "" >&2
+        warning "Worktree has uncommitted changes:" >&2
+        echo "$status" | head -5 >&2
+        if [[ $(echo "$status" | wc -l) -gt 5 ]]; then
+            echo "... and more" >&2
+        fi
+        echo "" >&2
+        echo -n "Delete anyway? [y/N] " >&2
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            info "Deletion cancelled" >&2
+            return 1
+        fi
+    fi
+
+    # Delete worktree
+    if git worktree remove --force "$worktree_path" 2>/dev/null; then
+        success "Deleted worktree for branch '$branch'" >&2
+
+        # Clean up empty parent directories
+        local parent_dir
+        parent_dir="$(dirname "$worktree_path")"
+        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
+            rmdir "$parent_dir" 2>/dev/null
+        fi
+    else
+        error "Failed to delete worktree" >&2
+        return 1
+    fi
+}
+
+# Recreate worktree (delete + create fresh)
+recreate_worktree() {
+    local line="$1"
+
+    # Strip ANSI color codes and extract branch name
+    local branch
+    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        error "No branch selected" >&2
+        return 1
+    fi
+
+    local worktree_path
+    worktree_path=$(get_worktree_path "$branch")
+
+    # Check if worktree exists
+    if [[ ! -d "$worktree_path" ]]; then
+        error "Worktree does not exist for branch '$branch'" >&2
+        return 1
+    fi
+
+    # Delete first
+    info "Recreating worktree for branch '$branch'..." >&2
+
+    # Check for uncommitted changes
+    cd "$worktree_path" 2>/dev/null || return 1
+    local status
+    status=$(git status --porcelain 2>/dev/null)
+
+    if [[ -n "$status" ]]; then
+        # Has uncommitted changes - show warning and ask for confirmation
+        echo "" >&2
+        warning "Worktree has uncommitted changes:" >&2
+        echo "$status" | head -5 >&2
+        if [[ $(echo "$status" | wc -l) -gt 5 ]]; then
+            echo "... and more" >&2
+        fi
+        echo "" >&2
+        echo -n "Recreate anyway? This will DELETE all uncommitted changes. [y/N] " >&2
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            info "Recreate cancelled" >&2
+            return 1
+        fi
+    fi
+
+    # Delete worktree
+    if ! git worktree remove --force "$worktree_path" 2>/dev/null; then
+        error "Failed to delete worktree" >&2
+        return 1
+    fi
+
+    # Clean up empty parent directories
+    local parent_dir
+    parent_dir="$(dirname "$worktree_path")"
+    if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
+        rmdir "$parent_dir" 2>/dev/null
+    fi
+
+    success "Deleted old worktree" >&2
+
+    # Create fresh worktree
+    info "Creating fresh worktree..." >&2
+    cmd_add "$branch" >&2
+}
+
 # Interactive fuzzy finder mode
 cmd_interactive() {
     check_git_repo
@@ -261,11 +388,19 @@ cmd_interactive() {
     # Export functions so they're available to fzf subshells
     export -f show_worktree_info
     export -f open_or_create_worktree
+    export -f delete_worktree_interactive
+    export -f recreate_worktree
     export -f has_worktree
     export -f get_worktree_path
     export -f get_project_name
     export -f format_branch_line
     export -f generate_branch_list
+    export -f cmd_add
+    export -f check_git_repo
+    export -f get_main_worktree
+    export -f symlink_env_files
+    export -f detect_package_manager
+    export -f check_worktree_migration
     export -f error
     export -f success
     export -f info
@@ -323,10 +458,12 @@ cmd_interactive() {
         --preview "$script_path __preview {}" \
         --preview-window right:50% \
         --prompt "Select branch > " \
-        --header "[Enter] Open/Create  [Esc] Cancel" \
+        --header "[Enter] Open/Create  [d] Delete  [r] Recreate  [Esc] Cancel" \
         --border \
         --height 100% \
-        --no-select-1 < "$fifo")
+        --no-select-1 \
+        --bind "d:execute-silent(delete_worktree_interactive {})+reload(generate_branch_list)" \
+        --bind "r:execute-silent(recreate_worktree {})+reload(generate_branch_list)" < "$fifo")
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null
