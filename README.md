@@ -51,8 +51,11 @@ Run `git-wt` with no arguments to browse branches interactively:
   - `[current]` - Currently checked out branch
   - `[remote only]` - Branch exists only on remote
 - Preview pane showing worktree path, status, size, and recent commits
-- Press `Enter` to create or open a worktree
-- Press `Esc` to cancel
+- Keybindings:
+  - `Enter` - Create or open a worktree
+  - `d` - Delete the selected worktree (prompts for confirmation if uncommitted changes exist)
+  - `r` - Recreate the worktree from scratch (delete + fresh create)
+  - `Esc` - Cancel
 
 ### Automatic Setup
 

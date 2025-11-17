@@ -30,15 +30,15 @@ Where:
 
 ### Key Functions
 
-- `get_worktree_base()` (git-wt:15-40): Gets configurable base path with priority: local config > global config > env var > default
-- `get_project_name()` (git-wt:70-83): Extracts project name from remote URL or directory
-- `detect_package_manager()` (git-wt:91-108): Detects pnpm/yarn/npm based on lock files
-- `symlink_env_files()` (git-wt:111-136): Symlinks `.env*` files from main repo to worktree
-- `cmd_add()` (git-wt:547-654): Creates worktree with automatic setup (fetch, install deps, symlink env, open in Cursor)
-- `cmd_list()` (git-wt:657-690): Lists all worktrees for current project
-- `cmd_remove()` (git-wt:693-727): Removes worktree and cleans up empty directories
-- `cmd_prune()` (git-wt:730-741): Removes stale worktree references
-- `auto_prune_stale_worktrees()` (git-wt:372-415): Automatically prunes merged branches with no uncommitted changes
+- `get_worktree_base()` (lib/config.sh:7): Gets configurable base path with priority: local config > global config > env var > default
+- `get_project_name()` (lib/git-utils.sh:17): Extracts project name from remote URL or directory
+- `detect_package_manager()` (lib/package-manager.sh:13): Detects pnpm/yarn/npm based on lock files
+- `symlink_env_files()` (lib/package-manager.sh:33): Symlinks `.env*` files from main repo to worktree
+- `cmd_add()` (lib/commands.sh:6): Creates worktree with automatic setup (fetch, install deps, symlink env, open in Cursor)
+- `cmd_list()` (lib/commands.sh:130): Lists all worktrees for current project
+- `cmd_remove()` (lib/commands.sh:172): Removes worktree and cleans up empty directories
+- `cmd_prune()` (lib/commands.sh:211): Removes stale worktree references
+- `auto_prune_stale_worktrees()` (lib/worktree-ops.sh:61): Automatically prunes merged branches with no uncommitted changes
 
 ## Development Commands
 
