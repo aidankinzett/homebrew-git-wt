@@ -1,0 +1,12 @@
+{
+  "threshold": 5,
+  "reporters": ["console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/test/**"
+  ],
+  "format": ["bash"],
+  "minLines": 10,
+  "minTokens": 70
+}
