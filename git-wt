@@ -40,6 +40,21 @@ export WORKTREE_BASE
 main() {
     local command="${1:-}"
 
+    # Check if we're in a git repo for onboarding (but allow --help and --config without being in a repo)
+    if [[ "$command" != "--help" ]] && [[ "$command" != "-h" ]] && [[ "$command" != "help" ]]; then
+        if check_git_repo 2>/dev/null; then
+            # Run onboarding if this is first time using git-wt in this repo
+            if ! is_onboarded; then
+                run_onboarding
+                # After onboarding, if no command was given, show the interactive mode
+                if [[ -z "$command" ]]; then
+                    cmd_interactive
+                    return
+                fi
+            fi
+        fi
+    fi
+
     # Handle flag-based commands
     case "$command" in
         __preview)
@@ -73,6 +88,12 @@ main() {
             ;;
         --config)
             cmd_config
+            ;;
+        --setup|setup)
+            check_git_repo || exit 1
+            # Clear onboarding flag to force re-run
+            git config --unset worktree.onboarded 2>/dev/null || true
+            run_onboarding
             ;;
         --help|-h|help)
             cmd_help

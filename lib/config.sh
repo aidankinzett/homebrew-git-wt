@@ -2,6 +2,94 @@
 
 # Configuration management functions
 
+# Check if user has completed onboarding
+is_onboarded() {
+    local onboarded
+    onboarded=$(git config --local --get worktree.onboarded 2>/dev/null)
+    [[ "$onboarded" == "true" ]]
+}
+
+# Run onboarding flow
+run_onboarding() {
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}Welcome to git-wt!${NC}"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "Let's set up git-wt for this repository."
+    echo ""
+
+    # Ask about worktree location
+    echo -e "${BLUE}Worktree Storage Location${NC}"
+    echo "All worktrees will be stored at: <base-path>/<project-name>/<branch-name>"
+    echo ""
+    echo -e "Default location: ${GREEN}~/.worktrees${NC}"
+    echo ""
+    read -r -p "Press Enter to use default, or type a custom path: " custom_path
+    echo ""
+
+    local base_path
+    if [[ -n "$custom_path" ]]; then
+        # Expand tilde if present
+        base_path="${custom_path/#\~/$HOME}"
+
+        # Validate the path
+        if [[ ! "$base_path" =~ ^/ ]]; then
+            # Not an absolute path, make it relative to HOME
+            base_path="$HOME/$base_path"
+        fi
+
+        # Create directory if it doesn't exist
+        if [[ ! -d "$base_path" ]]; then
+            if mkdir -p "$base_path" 2>/dev/null; then
+                success "Created directory: $base_path"
+            else
+                error "Failed to create directory: $base_path"
+                warning "Falling back to default: ~/.worktrees"
+                base_path="$HOME/.worktrees"
+            fi
+        fi
+
+        # Save to local git config
+        git config --local worktree.basepath "$base_path"
+        success "Worktree location set to: $base_path"
+    else
+        success "Using default location: ~/.worktrees"
+    fi
+    echo ""
+
+    # Ask about auto-pruning
+    echo -e "${BLUE}Auto-Pruning${NC}"
+    echo "git-wt can automatically clean up worktrees for branches that have been"
+    echo "merged into main/master. This keeps your workspace tidy."
+    echo ""
+    echo "Safety: Only removes worktrees with no uncommitted changes."
+    echo ""
+    read -r -p "Enable auto-pruning? (y/N): " enable_autoprune
+    echo ""
+
+    if [[ "$enable_autoprune" =~ ^[Yy]$ ]]; then
+        git config --local worktree.autoprune true
+        success "Auto-pruning enabled"
+    else
+        info "Auto-pruning disabled (you can enable it later with: git-wt --enable-autoprune)"
+    fi
+    echo ""
+
+    # Mark as onboarded
+    git config --local worktree.onboarded true
+
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}Setup complete!${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "You're all set! Try running:"
+    echo -e "  ${BLUE}git-wt${NC}                  # Launch interactive fuzzy finder"
+    echo -e "  ${BLUE}git-wt <branch-name>${NC}    # Create/open a worktree"
+    echo -e "  ${BLUE}git-wt --help${NC}           # See all available commands"
+    echo ""
+}
+
 # Get base directory for all worktrees
 # Priority: local git config > global git config > environment variable > default
 get_worktree_base() {
@@ -44,7 +132,7 @@ get_worktree_base() {
     fi
 
     # Default
-    echo "$HOME/Git/.worktrees"
+    echo "$HOME/.worktrees"
 }
 
 # Check for worktrees in different locations and warn about migration
@@ -67,7 +155,7 @@ check_worktree_migration() {
     local env_var="$GIT_WT_BASE"
     local_config=$(git config --local --get worktree.basepath 2>/dev/null)
     global_config=$(git config --global --get worktree.basepath 2>/dev/null)
-    local default_path="$HOME/Git/.worktrees"
+    local default_path="$HOME/.worktrees"
 
     # Build list of paths to check (excluding the current one)
     # Expand tildes and deduplicate paths

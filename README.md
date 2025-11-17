@@ -45,6 +45,12 @@ curl -fsSL https://raw.githubusercontent.com/aidankinzett/homebrew-git-wt/main/g
 
 ## Quick Start
 
+The first time you run `git-wt` in a repository, you'll be guided through a quick setup to configure your preferences:
+- Worktree storage location (default: `~/.worktrees`)
+- Auto-pruning for merged branches
+
+After setup, you can use git-wt:
+
 ```bash
 # Launch interactive fuzzy finder
 git-wt
@@ -60,6 +66,9 @@ git-wt --remove feature/my-branch
 
 # Clean up stale references
 git-wt --prune
+
+# Re-run setup wizard
+git-wt --setup
 ```
 
 ## Features
@@ -95,8 +104,10 @@ When creating a worktree, git-wt automatically:
 
 All worktrees are stored in:
 ```
-~/Git/.worktrees/<project-name>/<branch-name>
+~/.worktrees/<project-name>/<branch-name>
 ```
+
+You can customize this location during the first-run setup or later using `git-wt --setup`.
 
 ### Auto-Pruning
 
@@ -117,9 +128,21 @@ When enabled, git-wt automatically removes worktrees for branches that have been
 
 ## Configuration
 
+### First-Run Setup
+
+When you first run `git-wt` in a repository, you'll be guided through a setup wizard that asks:
+
+1. **Worktree storage location** - Where to store worktrees (default: `~/.worktrees`)
+2. **Auto-pruning** - Whether to automatically clean up merged branch worktrees
+
+You can re-run the setup wizard anytime with:
+```bash
+git-wt --setup
+```
+
 ### Custom Worktree Path
 
-You can customize where worktrees are stored using git config or environment variables:
+You can also manually customize where worktrees are stored using git config or environment variables:
 
 ```bash
 # Set globally for all repositories
@@ -132,7 +155,7 @@ git config --local worktree.basepath ~/custom/path
 export GIT_WT_BASE=~/custom/path
 ```
 
-**Priority order:** local git config > global git config > environment variable > default (`~/Git/.worktrees`)
+**Priority order:** local git config > global git config > environment variable > default (`~/.worktrees`)
 
 ### Migrating Existing Worktrees
 
@@ -142,7 +165,7 @@ If you change your worktree base path configuration, existing worktrees in the o
 
 ```bash
 # Example: Moving from old location to new location
-OLD_PATH=~/Git/.worktrees
+OLD_PATH=~/.worktrees
 NEW_PATH=~/custom/path
 
 # Move the entire project directory

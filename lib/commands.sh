@@ -267,9 +267,9 @@ cmd_config() {
     fi
 
     if [[ -z "$local_config" ]] && [[ -z "$global_config" ]] && [[ -z "$env_var" ]]; then
-        echo -e "  ${GREEN}✓${NC} Default:           $HOME/Git/.worktrees ${GREEN}[active]${NC}"
+        echo -e "  ${GREEN}✓${NC} Default:           $HOME/.worktrees ${GREEN}[active]${NC}"
     else
-        echo -e "    Default:           $HOME/Git/.worktrees"
+        echo -e "    Default:           $HOME/.worktrees"
     fi
 
     echo ""
@@ -320,6 +320,7 @@ OPTIONS:
   --enable-autoprune       Enable automatic pruning for this repo
   --disable-autoprune      Disable automatic pruning for this repo
   --config                 Show current configuration
+  --setup                  Run the setup wizard to configure git-wt
   --help, -h               Show this help message
 
 EXAMPLES:
@@ -346,6 +347,9 @@ EXAMPLES:
 
   # Show current configuration
   git-wt --config
+
+  # Run setup wizard
+  git-wt --setup
 
 AUTO-PRUNING:
   When enabled, git-wt automatically removes worktrees for branches that have been
