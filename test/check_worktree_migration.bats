@@ -15,7 +15,13 @@ setup() {
     GLOBAL_BASE="$TEST_TEMP_DIR/global/base"
     ENV_BASE="$TEST_TEMP_DIR/env/base"
     OTHER_BASE="$TEST_TEMP_DIR/other/base"
-    
+
+    # Canonicalize paths since they'll be validated by get_worktree_base
+    CURRENT_BASE=$(canonicalize_path "$CURRENT_BASE")
+    GLOBAL_BASE=$(canonicalize_path "$GLOBAL_BASE")
+    ENV_BASE=$(canonicalize_path "$ENV_BASE")
+    OTHER_BASE=$(canonicalize_path "$OTHER_BASE")
+
     # Save original configs
     ORIGINAL_LOCAL_CONFIG=$(git config --local --get worktree.basepath 2>/dev/null || true)
     ORIGINAL_GLOBAL_CONFIG=$(git config --global --get worktree.basepath 2>/dev/null || true)
