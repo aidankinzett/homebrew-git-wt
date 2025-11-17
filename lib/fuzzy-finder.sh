@@ -290,16 +290,26 @@ delete_worktree_interactive() {
 
     # Delete worktree
     if git worktree remove --force "$worktree_path" 2>/dev/null; then
-        success "Deleted worktree for branch '$branch'" >&2
-
         # Clean up empty parent directories
         local parent_dir
         parent_dir="$(dirname "$worktree_path")"
         if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
             rmdir "$parent_dir" 2>/dev/null
         fi
+
+        # Write success message to stdout so fzf can display it
+        echo ""
+        echo -e "${GREEN}✓ Deleted worktree for branch '$branch'${NC}"
+        echo ""
+        echo "Press any key to continue..."
+        read -r -n 1
     else
-        error "Failed to delete worktree" >&2
+        # Write error to stdout so fzf can display it
+        echo ""
+        echo -e "${RED}✗ Failed to delete worktree${NC}"
+        echo ""
+        echo "Press any key to continue..."
+        read -r -n 1
         return 1
     fi
 }
@@ -365,11 +375,23 @@ recreate_worktree() {
         rmdir "$parent_dir" 2>/dev/null
     fi
 
-    success "Deleted old worktree" >&2
-
     # Create fresh worktree
-    info "Creating fresh worktree..." >&2
-    cmd_add "$branch" >&2
+    echo ""
+    echo -e "${BLUE}Creating fresh worktree for '$branch'...${NC}"
+    if cmd_add "$branch" 2>&1; then
+        echo ""
+        echo -e "${GREEN}✓ Worktree recreated successfully${NC}"
+        echo ""
+        echo "Press any key to continue..."
+        read -r -n 1
+    else
+        echo ""
+        echo -e "${RED}✗ Failed to recreate worktree${NC}"
+        echo ""
+        echo "Press any key to continue..."
+        read -r -n 1
+        return 1
+    fi
 }
 
 # Interactive fuzzy finder mode
