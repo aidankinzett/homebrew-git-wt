@@ -467,8 +467,8 @@ cmd_interactive() {
         --border \
         --height 100% \
         --no-select-1 \
-        --bind "d:execute(delete_worktree_interactive {})+reload(generate_branch_list)" \
-        --bind "r:execute(recreate_worktree {})+reload(generate_branch_list)" < "$fifo")
+        --bind "d:execute($script_path __delete {})+reload($script_path __list-branches)" \
+        --bind "r:execute($script_path __recreate {})+reload($script_path __list-branches)" < "$fifo")
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null

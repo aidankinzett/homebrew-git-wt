@@ -52,6 +52,20 @@ main() {
             shift
             show_worktree_info "$@"
             ;;
+        __list-branches)
+            # Internal command for fzf reload after delete/recreate
+            generate_branch_list "local-only"
+            ;;
+        __delete)
+            # Internal command for fzf delete operation
+            shift
+            delete_worktree_interactive "$@"
+            ;;
+        __recreate)
+            # Internal command for fzf recreate operation
+            shift
+            recreate_worktree "$@"
+            ;;
         --list|-l|list|ls)
             cmd_list
             ;;
