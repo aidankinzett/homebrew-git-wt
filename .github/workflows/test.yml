@@ -27,17 +27,48 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install bats and kcov
-        run: sudo apt-get update && sudo apt-get install -y bats kcov
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake libcurl4-openssl-dev libelf-dev libdw-dev binutils-dev libiberty-dev
 
-      - name: Run tests with coverage
-        run: kcov --exclude-pattern=/usr,/tmp coverage/ make test
+      - name: Install kcov
+        run: |
+          wget https://github.com/SimonKagstrom/kcov/archive/refs/tags/v42.tar.gz
+          tar xzf v42.tar.gz
+          cd kcov-42
+          mkdir build && cd build
+          cmake ..
+          make
+          sudo make install
+          cd ../..
+          rm -rf kcov-42 v42.tar.gz
+
+      - name: Install bats-core
+        run: |
+          git clone https://github.com/bats-core/bats-core.git
+          cd bats-core
+          sudo ./install.sh /usr/local
+          cd ..
+          rm -rf bats-core
+
+      - name: Run tests with coverage and JUnit output
+        run: |
+          mkdir -p coverage test-results
+          kcov --exclude-pattern=/usr,/tmp coverage/ bats --report-formatter junit --output test-results/ test/
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           directory: ./coverage
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: always()
+        uses: codecov/test-results-action@v1
+        with:
+          directory: ./test-results
           token: ${{ secrets.CODECOV_TOKEN }}
 
   # Optional: Test on macOS as well since that's the primary platform
