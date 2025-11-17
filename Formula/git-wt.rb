@@ -6,8 +6,8 @@ class GitWt < Formula
   depends_on "fzf"
 
   def install
-    bin.install "git-wt"
-    bin.install "lib"
+    libexec.install "git-wt", "lib"
+    bin.write_exec_script(libexec/"git-wt")
   end
 
   test do
