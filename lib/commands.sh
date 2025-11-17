@@ -4,296 +4,299 @@
 
 # Add a new worktree
 cmd_add() {
-    local branch_name="$1"
+	local branch_name="$1"
 
-    if [[ -z "$branch_name" ]]; then
-        error "Branch name is required"
-        echo "Usage: git-wt add <branch-name>"
-        exit 1
-    fi
+	if [[ -z "$branch_name" ]]; then
+		error "Branch name is required"
+		echo "Usage: git-wt add <branch-name>"
+		exit 1
+	fi
 
-    check_git_repo || exit 1
+	check_git_repo || exit 1
 
-    local project_name
-    project_name=$(get_project_name)
-    local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
-    local main_worktree
-    main_worktree=$(get_main_worktree)
+	local project_name
+	project_name=$(get_project_name)
+	local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
+	local main_worktree
+	main_worktree=$(get_main_worktree)
 
-    # Check if worktree already exists
-    if [[ -d "$worktree_path" ]]; then
-        error "Worktree already exists at $worktree_path"
-        exit 1
-    fi
+	# Check if worktree already exists
+	if [[ -d "$worktree_path" ]]; then
+		error "Worktree already exists at $worktree_path"
+		exit 1
+	fi
 
-    # Create worktree directory structure
-    mkdir -p "$(dirname "$worktree_path")"
+	# Create worktree directory structure
+	mkdir -p "$(dirname "$worktree_path")"
 
-    # Fetch latest from remote to ensure we have up-to-date branch info
-    info "Fetching latest from remote..."
-    if git fetch origin 2>/dev/null; then
-        success "Fetched latest changes from origin"
-    else
-        warning "Could not fetch from origin (might not have remote configured)"
-    fi
+	# Fetch latest from remote to ensure we have up-to-date branch info
+	info "Fetching latest from remote..."
+	if git fetch origin 2>/dev/null; then
+		success "Fetched latest changes from origin"
+	else
+		warning "Could not fetch from origin (might not have remote configured)"
+	fi
 
-    # Check if branch exists on remote
-    local remote_branch_exists
-    remote_branch_exists=$(git ls-remote --heads origin "$branch_name" 2>/dev/null)
-    local local_branch_exists
-    local_branch_exists=$(git show-ref --verify --quiet "refs/heads/$branch_name" && echo "yes" || echo "no")
+	# Check if branch exists on remote
+	local remote_branch_exists
+	remote_branch_exists=$(git ls-remote --heads origin "$branch_name" 2>/dev/null)
+	local local_branch_exists
+	local_branch_exists=$(git show-ref --verify --quiet "refs/heads/$branch_name" && echo "yes" || echo "no")
 
-    info "Creating worktree for branch '$branch_name'..."
+	info "Creating worktree for branch '$branch_name'..."
 
-    # Create the worktree based on what exists (check local first!)
-    if [[ "$local_branch_exists" == "yes" ]]; then
-        # Local branch exists - use it (most common case)
-        if git worktree add "$worktree_path" "$branch_name" 2>/dev/null; then
-            success "Worktree created from local branch '$branch_name'"
-        else
-            error "Failed to create worktree from local branch"
-            exit 1
-        fi
-    elif [[ -n "$remote_branch_exists" ]]; then
-        # Remote branch exists but no local - create local tracking remote
-        if git worktree add --track -b "$branch_name" "$worktree_path" "origin/$branch_name" 2>/dev/null; then
-            success "Worktree created from remote branch 'origin/$branch_name'"
-        else
-            error "Failed to create worktree from remote branch"
-            exit 1
-        fi
-    else
-        # Branch doesn't exist anywhere - create new branch
-        if git worktree add "$worktree_path" -b "$branch_name" 2>/dev/null; then
-            success "Worktree created with new branch '$branch_name'"
-        else
-            error "Failed to create worktree with new branch"
-            exit 1
-        fi
-    fi
+	# Create the worktree based on what exists (check local first!)
+	if [[ "$local_branch_exists" == "yes" ]]; then
+		# Local branch exists - use it (most common case)
+		if git worktree add "$worktree_path" "$branch_name" 2>/dev/null; then
+			success "Worktree created from local branch '$branch_name'"
+		else
+			error "Failed to create worktree from local branch"
+			exit 1
+		fi
+	elif [[ -n "$remote_branch_exists" ]]; then
+		# Remote branch exists but no local - create local tracking remote
+		if git worktree add --track -b "$branch_name" "$worktree_path" "origin/$branch_name" 2>/dev/null; then
+			success "Worktree created from remote branch 'origin/$branch_name'"
+		else
+			error "Failed to create worktree from remote branch"
+			exit 1
+		fi
+	else
+		# Branch doesn't exist anywhere - create new branch
+		if git worktree add "$worktree_path" -b "$branch_name" 2>/dev/null; then
+			success "Worktree created with new branch '$branch_name'"
+		else
+			error "Failed to create worktree with new branch"
+			exit 1
+		fi
+	fi
 
-    # Symlink .env files
-    symlink_env_files "$main_worktree" "$worktree_path"
+	# Symlink .env files
+	symlink_env_files "$main_worktree" "$worktree_path"
 
-    # Detect and run package manager
-    local pkg_manager
-    pkg_manager=$(detect_package_manager "$worktree_path")
+	# Detect and run package manager
+	local pkg_manager
+	pkg_manager=$(detect_package_manager "$worktree_path")
 
-    if [[ -n "$pkg_manager" ]]; then
-        info "Detected package manager: $pkg_manager"
-        info "Installing dependencies..."
+	if [[ -n "$pkg_manager" ]]; then
+		info "Detected package manager: $pkg_manager"
+		info "Installing dependencies..."
 
-        # Run in subshell to avoid changing caller's working directory
-        (
-            cd "$worktree_path" || { warning "Failed to change to worktree directory"; exit 1; }
+		# Run in subshell to avoid changing caller's working directory
+		(
+			cd "$worktree_path" || {
+				warning "Failed to change to worktree directory"
+				exit 1
+			}
 
-            case "$pkg_manager" in
-                pnpm)
-                    if pnpm install; then
-                        success "Dependencies installed successfully"
-                    else
-                        warning "Failed to install dependencies"
-                    fi
-                    ;;
-                yarn)
-                    if yarn install; then
-                        success "Dependencies installed successfully"
-                    else
-                        warning "Failed to install dependencies"
-                    fi
-                    ;;
-                npm)
-                    if npm install; then
-                        success "Dependencies installed successfully"
-                    else
-                        warning "Failed to install dependencies"
-                    fi
-                    ;;
-            esac
-        )
-    fi
+			case "$pkg_manager" in
+			pnpm)
+				if pnpm install; then
+					success "Dependencies installed successfully"
+				else
+					warning "Failed to install dependencies"
+				fi
+				;;
+			yarn)
+				if yarn install; then
+					success "Dependencies installed successfully"
+				else
+					warning "Failed to install dependencies"
+				fi
+				;;
+			npm)
+				if npm install; then
+					success "Dependencies installed successfully"
+				else
+					warning "Failed to install dependencies"
+				fi
+				;;
+			esac
+		)
+	fi
 
-    echo ""
-    success "Worktree ready!"
+	echo ""
+	success "Worktree ready!"
 
-    # Open in Cursor
-    if command -v cursor &> /dev/null; then
-        info "Opening worktree in Cursor..."
-        cursor "$worktree_path"
-    else
-        info "To switch to the new worktree, run:"
-        echo -e "${BLUE}  cd $worktree_path${NC}"
-    fi
+	# Open in Cursor
+	if command -v cursor &>/dev/null; then
+		info "Opening worktree in Cursor..."
+		cursor "$worktree_path"
+	else
+		info "To switch to the new worktree, run:"
+		echo -e "${BLUE}  cd $worktree_path${NC}"
+	fi
 }
 
 # List all worktrees for current project
 cmd_list() {
-    check_git_repo || exit 1
+	check_git_repo || exit 1
 
-    # Check for migration notice
-    check_worktree_migration
+	# Check for migration notice
+	check_worktree_migration
 
-    local project_name
-    project_name=$(get_project_name)
-    local project_worktrees="$WORKTREE_BASE/$project_name"
+	local project_name
+	project_name=$(get_project_name)
+	local project_worktrees="$WORKTREE_BASE/$project_name"
 
-    info "Worktrees for project '$project_name':"
-    echo ""
+	info "Worktrees for project '$project_name':"
+	echo ""
 
-    git worktree list | while IFS= read -r line; do
-        local path
-        path=$(echo "$line" | awk '{print $1}')
-        local branch
-        branch=$(echo "$line" | awk '{print $3}' | tr -d '[]')
-        local main_marker=""
+	git worktree list | while IFS= read -r line; do
+		local path
+		path=$(echo "$line" | awk '{print $1}')
+		local branch
+		branch=$(echo "$line" | awk '{print $3}' | tr -d '[]')
+		local main_marker=""
 
-        if echo "$line" | grep -q "(bare)"; then
-            branch="(bare)"
-        fi
+		if echo "$line" | grep -q "(bare)"; then
+			branch="(bare)"
+		fi
 
-        # Check if this is the main worktree
-        if [[ "$path" == "$(get_main_worktree)" ]]; then
-            main_marker="${GREEN}[main]${NC} "
-        fi
+		# Check if this is the main worktree
+		if [[ "$path" == "$(get_main_worktree)" ]]; then
+			main_marker="${GREEN}[main]${NC} "
+		fi
 
-        # Highlight if path is under our managed worktrees
-        if [[ "$path" == "$project_worktrees"* ]]; then
-            echo -e "  ${GREEN}●${NC} $main_marker$branch"
-            echo -e "    ${BLUE}$path${NC}"
-        else
-            echo -e "  ${YELLOW}●${NC} $main_marker$branch"
-            echo -e "    ${BLUE}$path${NC}"
-        fi
-        echo ""
-    done
+		# Highlight if path is under our managed worktrees
+		if [[ "$path" == "$project_worktrees"* ]]; then
+			echo -e "  ${GREEN}●${NC} $main_marker$branch"
+			echo -e "    ${BLUE}$path${NC}"
+		else
+			echo -e "  ${YELLOW}●${NC} $main_marker$branch"
+			echo -e "    ${BLUE}$path${NC}"
+		fi
+		echo ""
+	done
 }
 
 # Remove a worktree
 cmd_remove() {
-    local branch_name="$1"
+	local branch_name="$1"
 
-    if [[ -z "$branch_name" ]]; then
-        error "Branch name is required"
-        echo "Usage: git-wt remove <branch-name>"
-        exit 1
-    fi
+	if [[ -z "$branch_name" ]]; then
+		error "Branch name is required"
+		echo "Usage: git-wt remove <branch-name>"
+		exit 1
+	fi
 
-    check_git_repo || exit 1
+	check_git_repo || exit 1
 
-    local project_name
-    project_name=$(get_project_name)
-    local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
+	local project_name
+	project_name=$(get_project_name)
+	local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
 
-    if [[ ! -d "$worktree_path" ]]; then
-        error "Worktree not found at $worktree_path"
-        exit 1
-    fi
+	if [[ ! -d "$worktree_path" ]]; then
+		error "Worktree not found at $worktree_path"
+		exit 1
+	fi
 
-    info "Removing worktree at $worktree_path..."
+	info "Removing worktree at $worktree_path..."
 
-    if git worktree remove "$worktree_path" --force; then
-        success "Worktree removed successfully"
+	if git worktree remove "$worktree_path" --force; then
+		success "Worktree removed successfully"
 
-        # Clean up empty parent directories
-        local parent_dir
-        parent_dir="$(dirname "$worktree_path")"
-        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir")" ]]; then
-            rmdir "$parent_dir"
-            info "Cleaned up empty directory: $parent_dir"
-        fi
-    else
-        error "Failed to remove worktree"
-        exit 1
-    fi
+		# Clean up empty parent directories
+		local parent_dir
+		parent_dir="$(dirname "$worktree_path")"
+		if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir")" ]]; then
+			rmdir "$parent_dir"
+			info "Cleaned up empty directory: $parent_dir"
+		fi
+	else
+		error "Failed to remove worktree"
+		exit 1
+	fi
 }
 
 # Prune stale worktree references
 cmd_prune() {
-    check_git_repo || exit 1
+	check_git_repo || exit 1
 
-    info "Pruning stale worktree references..."
+	info "Pruning stale worktree references..."
 
-    if git worktree prune --verbose; then
-        success "Pruning complete"
-    else
-        error "Failed to prune worktrees"
-        exit 1
-    fi
+	if git worktree prune --verbose; then
+		success "Pruning complete"
+	else
+		error "Failed to prune worktrees"
+		exit 1
+	fi
 }
 
 # Show current configuration
 cmd_config() {
-    info "Git Worktree Configuration"
-    echo ""
+	info "Git Worktree Configuration"
+	echo ""
 
-    # Show current base path
-    echo -e "${BLUE}Current worktree base path:${NC}"
-    echo "  $WORKTREE_BASE"
-    echo ""
+	# Show current base path
+	echo -e "${BLUE}Current worktree base path:${NC}"
+	echo "  $WORKTREE_BASE"
+	echo ""
 
-    # Show source of configuration
-    local local_config
-    local global_config
-    local env_var="$GIT_WT_BASE"
-    local_config=$(git config --local --get worktree.basepath 2>/dev/null)
-    global_config=$(git config --global --get worktree.basepath 2>/dev/null)
+	# Show source of configuration
+	local local_config
+	local global_config
+	local env_var="$GIT_WT_BASE"
+	local_config=$(git config --local --get worktree.basepath 2>/dev/null)
+	global_config=$(git config --global --get worktree.basepath 2>/dev/null)
 
-    echo -e "${BLUE}Configuration sources (in priority order):${NC}"
+	echo -e "${BLUE}Configuration sources (in priority order):${NC}"
 
-    if [[ -n "$local_config" ]]; then
-        echo -e "  ${GREEN}✓${NC} Local git config:  $local_config ${GREEN}[active]${NC}"
-    else
-        echo -e "    Local git config:  ${YELLOW}(not set)${NC}"
-    fi
+	if [[ -n "$local_config" ]]; then
+		echo -e "  ${GREEN}✓${NC} Local git config:  $local_config ${GREEN}[active]${NC}"
+	else
+		echo -e "    Local git config:  ${YELLOW}(not set)${NC}"
+	fi
 
-    if [[ -n "$global_config" ]]; then
-        if [[ -z "$local_config" ]]; then
-            echo -e "  ${GREEN}✓${NC} Global git config: $global_config ${GREEN}[active]${NC}"
-        else
-            echo -e "    Global git config: $global_config ${YELLOW}(overridden by local)${NC}"
-        fi
-    else
-        echo -e "    Global git config: ${YELLOW}(not set)${NC}"
-    fi
+	if [[ -n "$global_config" ]]; then
+		if [[ -z "$local_config" ]]; then
+			echo -e "  ${GREEN}✓${NC} Global git config: $global_config ${GREEN}[active]${NC}"
+		else
+			echo -e "    Global git config: $global_config ${YELLOW}(overridden by local)${NC}"
+		fi
+	else
+		echo -e "    Global git config: ${YELLOW}(not set)${NC}"
+	fi
 
-    if [[ -n "$env_var" ]]; then
-        if [[ -z "$local_config" ]] && [[ -z "$global_config" ]]; then
-            echo -e "  ${GREEN}✓${NC} Environment var:   $env_var ${GREEN}[active]${NC}"
-        else
-            echo -e "    Environment var:   $env_var ${YELLOW}(overridden)${NC}"
-        fi
-    else
-        echo -e "    Environment var:   ${YELLOW}(not set)${NC}"
-    fi
+	if [[ -n "$env_var" ]]; then
+		if [[ -z "$local_config" ]] && [[ -z "$global_config" ]]; then
+			echo -e "  ${GREEN}✓${NC} Environment var:   $env_var ${GREEN}[active]${NC}"
+		else
+			echo -e "    Environment var:   $env_var ${YELLOW}(overridden)${NC}"
+		fi
+	else
+		echo -e "    Environment var:   ${YELLOW}(not set)${NC}"
+	fi
 
-    if [[ -z "$local_config" ]] && [[ -z "$global_config" ]] && [[ -z "$env_var" ]]; then
-        echo -e "  ${GREEN}✓${NC} Default:           $HOME/Git/.worktrees ${GREEN}[active]${NC}"
-    else
-        echo -e "    Default:           $HOME/Git/.worktrees"
-    fi
+	if [[ -z "$local_config" ]] && [[ -z "$global_config" ]] && [[ -z "$env_var" ]]; then
+		echo -e "  ${GREEN}✓${NC} Default:           $HOME/Git/.worktrees ${GREEN}[active]${NC}"
+	else
+		echo -e "    Default:           $HOME/Git/.worktrees"
+	fi
 
-    echo ""
+	echo ""
 
-    # Show auto-prune status
-    local autoprune
-    autoprune=$(git config --get worktree.autoprune 2>/dev/null)
-    echo -e "${BLUE}Auto-pruning:${NC}"
-    if [[ "$autoprune" == "true" ]]; then
-        echo -e "  ${GREEN}✓ Enabled${NC}"
-    else
-        echo -e "  ${YELLOW}✗ Disabled${NC}"
-    fi
+	# Show auto-prune status
+	local autoprune
+	autoprune=$(git config --get worktree.autoprune 2>/dev/null)
+	echo -e "${BLUE}Auto-pruning:${NC}"
+	if [[ "$autoprune" == "true" ]]; then
+		echo -e "  ${GREEN}✓ Enabled${NC}"
+	else
+		echo -e "  ${YELLOW}✗ Disabled${NC}"
+	fi
 
-    echo ""
-    info "To change configuration:"
-    echo "  git config --global worktree.basepath <path>  # Set globally"
-    echo "  git config --local worktree.basepath <path>   # Set for this repo"
-    echo "  export GIT_WT_BASE=<path>                     # Set via environment"
+	echo ""
+	info "To change configuration:"
+	echo "  git config --global worktree.basepath <path>  # Set globally"
+	echo "  git config --local worktree.basepath <path>   # Set for this repo"
+	echo "  export GIT_WT_BASE=<path>                     # Set via environment"
 }
 
 # Show help
 cmd_help() {
-    cat << EOF
+	cat <<EOF
 git-wt - Git worktree management tool
 
 USAGE:

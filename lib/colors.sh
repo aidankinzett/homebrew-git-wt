@@ -11,17 +11,17 @@ NC='\033[0m' # No Color
 
 # Print colored messages
 error() {
-    echo -e "${RED}Error: $1${NC}" >&2
+	echo -e "${RED}Error: $1${NC}" >&2
 }
 
 success() {
-    echo -e "${GREEN}$1${NC}"
+	echo -e "${GREEN}$1${NC}"
 }
 
 info() {
-    echo -e "${BLUE}$1${NC}"
+	echo -e "${BLUE}$1${NC}"
 }
 
 warning() {
-    echo -e "${YELLOW}$1${NC}" >&2
+	echo -e "${YELLOW}$1${NC}" >&2
 }

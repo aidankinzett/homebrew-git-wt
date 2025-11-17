@@ -9,13 +9,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Helper to source library files with error handling
 source_lib() {
-    local lib="$1"
-    # shellcheck source=/dev/null
-    if ! source "$SCRIPT_DIR/lib/$lib" 2>/dev/null; then
-        echo "Error: Failed to source lib/$lib" >&2
-        echo "Please ensure git-wt is properly installed" >&2
-        exit 1
-    fi
+	local lib="$1"
+	# shellcheck source=/dev/null
+	if ! source "$SCRIPT_DIR/lib/$lib" 2>/dev/null; then
+		echo "Error: Failed to source lib/$lib" >&2
+		echo "Please ensure git-wt is properly installed" >&2
+		exit 1
+	fi
 }
 
 # Source library files
@@ -31,64 +31,64 @@ source_lib "commands.sh"
 # Base directory for all worktrees - validate it's not empty
 WORKTREE_BASE=$(get_worktree_base)
 if [[ -z "$WORKTREE_BASE" ]]; then
-    echo "Error: Failed to determine worktree base path" >&2
-    exit 1
+	echo "Error: Failed to determine worktree base path" >&2
+	exit 1
 fi
 export WORKTREE_BASE
 
 # Main command dispatcher
 main() {
-    local command="${1:-}"
+	local command="${1:-}"
 
-    # Handle flag-based commands
-    case "$command" in
-        __preview)
-            # Internal command for fzf preview pane
-            shift
-            show_worktree_info "$@"
-            ;;
-        --list|-l|list|ls)
-            cmd_list
-            ;;
-        --remove|-r|remove|rm)
-            shift
-            cmd_remove "$@"
-            ;;
-        --prune|-p|prune)
-            cmd_prune
-            ;;
-        --enable-autoprune)
-            git config worktree.autoprune true
-            success "Auto-pruning enabled for this repository"
-            info "Merged branches will be automatically cleaned up when running git-wt"
-            ;;
-        --disable-autoprune)
-            git config --unset worktree.autoprune 2>/dev/null || true
-            success "Auto-pruning disabled for this repository"
-            ;;
-        --cleanup)
-            check_git_repo || exit 1
-            info "Checking for stale worktrees..."
-            auto_prune_stale_worktrees
-            ;;
-        --config)
-            cmd_config
-            ;;
-        --help|-h|help)
-            cmd_help
-            ;;
-        "")
-            # No arguments - launch interactive mode
-            cmd_interactive
-            ;;
-        *)
-            # Treat as branch name - direct mode
-            open_or_create_worktree "$command"
-            ;;
-    esac
+	# Handle flag-based commands
+	case "$command" in
+	__preview)
+		# Internal command for fzf preview pane
+		shift
+		show_worktree_info "$@"
+		;;
+	--list | -l | list | ls)
+		cmd_list
+		;;
+	--remove | -r | remove | rm)
+		shift
+		cmd_remove "$@"
+		;;
+	--prune | -p | prune)
+		cmd_prune
+		;;
+	--enable-autoprune)
+		git config worktree.autoprune true
+		success "Auto-pruning enabled for this repository"
+		info "Merged branches will be automatically cleaned up when running git-wt"
+		;;
+	--disable-autoprune)
+		git config --unset worktree.autoprune 2>/dev/null || true
+		success "Auto-pruning disabled for this repository"
+		;;
+	--cleanup)
+		check_git_repo || exit 1
+		info "Checking for stale worktrees..."
+		auto_prune_stale_worktrees
+		;;
+	--config)
+		cmd_config
+		;;
+	--help | -h | help)
+		cmd_help
+		;;
+	"")
+		# No arguments - launch interactive mode
+		cmd_interactive
+		;;
+	*)
+		# Treat as branch name - direct mode
+		open_or_create_worktree "$command"
+		;;
+	esac
 }
 
 # Only run main if script is executed directly (not sourced)
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+	main "$@"
 fi
