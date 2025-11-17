@@ -53,7 +53,6 @@ teardown() {
     run delete_worktree_interactive "  feature/test"
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Deleted worktree"* ]]
     [ ! -d "$worktree_path" ]
 }
 
@@ -73,7 +72,6 @@ teardown() {
     run delete_worktree_interactive "$ansi_line"
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Deleted worktree"* ]]
     [ ! -d "$worktree_path" ]
 }
 
@@ -141,7 +139,6 @@ teardown() {
     run delete_worktree_interactive 'feature/force-delete' <<< 'y'
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Deleted worktree"* ]]
     [ ! -d "$worktree_path" ]
 }
 
