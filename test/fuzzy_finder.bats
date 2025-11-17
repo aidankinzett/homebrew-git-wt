@@ -146,8 +146,6 @@ teardown() {
 }
 
 @test "recreate_worktree recreates clean worktree successfully" {
-    skip "Recreate requires full cmd_add setup with package manager detection"
-
     # Create a worktree
     local branch="feature/recreate"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"
@@ -155,17 +153,17 @@ teardown() {
     mkdir -p "$(dirname "$worktree_path")"
     git worktree add "$worktree_path" -b "$branch"
 
-    # Add a marker file
+    # Add an uncommitted marker file
     echo "original" > "$worktree_path/marker.txt"
 
-    # Recreate worktree
-    run recreate_worktree "feature/recreate"
+    # Recreate worktree (provide 'y' to confirm deletion of uncommitted changes)
+    run recreate_worktree "feature/recreate" <<< 'y'
 
     [ "$status" -eq 0 ]
     [[ "$output" == *"Deleted old worktree"* ]]
     [[ "$output" == *"Creating fresh worktree"* ]]
     [ -d "$worktree_path" ]
-    # Marker file should not exist (fresh worktree)
+    # Marker file should not exist (it was uncommitted and got deleted)
     [ ! -f "$worktree_path/marker.txt" ]
 }
 
@@ -178,8 +176,6 @@ teardown() {
 }
 
 @test "recreate_worktree prompts for confirmation with uncommitted changes" {
-    skip "Recreate requires full cmd_add setup with package manager detection"
-
     # Create a worktree
     local branch="feature/recreate-dirty"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"

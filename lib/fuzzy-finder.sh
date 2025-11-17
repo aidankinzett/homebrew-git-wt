@@ -403,6 +403,8 @@ cmd_interactive() {
     export -f symlink_env_files
     export -f detect_package_manager
     export -f check_worktree_migration
+    export -f is_worktree_stale
+    export -f auto_prune_stale_worktrees
     export -f error
     export -f success
     export -f info
@@ -464,8 +466,8 @@ cmd_interactive() {
         --border \
         --height 100% \
         --no-select-1 \
-        --bind "d:execute-silent(delete_worktree_interactive {})+reload(generate_branch_list)" \
-        --bind "r:execute-silent(recreate_worktree {})+reload(generate_branch_list)" < "$fifo")
+        --bind "d:execute(delete_worktree_interactive {})+reload(generate_branch_list)" \
+        --bind "r:execute(recreate_worktree {})+reload(generate_branch_list)" < "$fifo")
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null
