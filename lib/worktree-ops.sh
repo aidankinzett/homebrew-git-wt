@@ -11,12 +11,25 @@
 #   - These are typically set up by the main git-wt script before sourcing this file
 
 # Check if branch has a worktree
+# Checks both the expected location and git's registered worktrees
 has_worktree() {
     local branch="$1"
+
+    # First check the expected location based on WORKTREE_BASE
     local project_name
     project_name=$(get_project_name)
-    local worktree_path="$WORKTREE_BASE/$project_name/$branch"
-    [[ -d "$worktree_path" ]]
+    local expected_path="$WORKTREE_BASE/$project_name/$branch"
+    if [[ -d "$expected_path" ]]; then
+        return 0
+    fi
+
+    # Also check git's registered worktrees (handles worktrees in different locations)
+    # This finds worktrees even if they're in legacy locations
+    if git worktree list --porcelain 2>/dev/null | grep -q "^worktree .*/$branch$"; then
+        return 0
+    fi
+
+    return 1
 }
 
 # Get worktree path for branch
