@@ -42,18 +42,22 @@ validate_worktree_path() {
 
 	# Canonicalize the path to resolve '..' and prevent path traversal
 	# Use -m to allow non-existent paths (won't create them)
-	if command -v realpath &>/dev/null; then
+	# Try GNU realpath first (grealpath on macOS with coreutils), then fall back to BSD realpath
+	local realpath_cmd
+	if command -v grealpath &>/dev/null; then
+		realpath_cmd="grealpath"
+	elif command -v realpath &>/dev/null; then
+		realpath_cmd="realpath"
+	fi
+
+	if [[ -n "$realpath_cmd" ]]; then
 		local canonicalized
-		if canonicalized=$(realpath -m "$path" 2>/dev/null); then
+		if canonicalized=$("$realpath_cmd" -m "$path" 2>/dev/null); then
 			path="$canonicalized"
 		else
-			warning "realpath command failed - falling back to basic normalization"
-			warning "Install 'coreutils' (brew install coreutils) for improved path safety"
 			path=$(_normalize_path "$path")
 		fi
 	else
-		warning "realpath command not found - path traversal protection is limited"
-		warning "Install 'coreutils' (brew install coreutils) for improved path safety"
 		path=$(_normalize_path "$path")
 	fi
 

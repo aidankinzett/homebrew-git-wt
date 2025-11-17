@@ -5,7 +5,12 @@
 # Base path can be configured via git config worktree.basepath or $GIT_WT_BASE
 
 # Get the directory where this script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve the real path in case the script is executed via a symlink (as in Homebrew)
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+if command -v readlink &> /dev/null && readlink -f "$SCRIPT_PATH" &> /dev/null; then
+    SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
+fi
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 
 # Helper to source library files with error handling
 source_lib() {
