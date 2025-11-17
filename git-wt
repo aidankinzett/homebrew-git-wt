@@ -57,9 +57,9 @@ main() {
             generate_branch_list "local-only"
             ;;
         __delete)
-            # Internal command for fzf delete operation
+            # Internal command for fzf delete operation (with confirmation for uncommitted changes)
             shift
-            delete_worktree_interactive "$@"
+            delete_worktree_with_check "$@"
             ;;
         __recreate)
             # Internal command for fzf recreate operation

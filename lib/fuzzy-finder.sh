@@ -243,6 +243,63 @@ open_or_create_worktree() {
     fi
 }
 
+# Delete worktree with silent operation and optional confirmation
+# This version shows confirmation prompts but deletes silently
+delete_worktree_with_check() {
+    local line="$1"
+
+    # Strip ANSI color codes and extract branch name
+    local branch
+    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        return 1
+    fi
+
+    local worktree_path
+    worktree_path=$(get_worktree_path "$branch")
+
+    # Check if worktree exists
+    if [[ ! -d "$worktree_path" ]]; then
+        return 1
+    fi
+
+    # Check for uncommitted changes
+    local status
+    if ! status=$(cd "$worktree_path" 2>/dev/null && git status --porcelain 2>/dev/null); then
+        return 1
+    fi
+
+    # If there are uncommitted changes, ask for confirmation
+    if [[ -n "$status" ]]; then
+        echo ""
+        warning "Worktree has uncommitted changes:"
+        echo "$status" | head -5
+        if [[ $(echo "$status" | wc -l) -gt 5 ]]; then
+            echo "... and more"
+        fi
+        echo ""
+        echo -n "Delete anyway? [y/N] "
+        read -r response
+        if [[ ! "$response" =~ ^[Yy]$ ]]; then
+            return 1
+        fi
+    fi
+
+    # Delete worktree silently
+    if git worktree remove --force "$worktree_path" 2>/dev/null; then
+        # Clean up empty parent directories
+        local parent_dir
+        parent_dir="$(dirname "$worktree_path")"
+        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
+            rmdir "$parent_dir" 2>/dev/null
+        fi
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Delete worktree (called from fuzzy finder)
 delete_worktree_interactive() {
     local line="$1"
@@ -296,20 +353,8 @@ delete_worktree_interactive() {
         if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
             rmdir "$parent_dir" 2>/dev/null
         fi
-
-        # Write success message to stdout so fzf can display it
-        echo ""
-        echo -e "${GREEN}✓ Deleted worktree for branch '$branch'${NC}"
-        echo ""
-        echo "Press any key to continue..."
-        read -r -n 1
     else
-        # Write error to stdout so fzf can display it
-        echo ""
-        echo -e "${RED}✗ Failed to delete worktree${NC}"
-        echo ""
-        echo "Press any key to continue..."
-        read -r -n 1
+        error "Failed to delete worktree" >&2
         return 1
     fi
 }
@@ -375,23 +420,11 @@ recreate_worktree() {
         rmdir "$parent_dir" 2>/dev/null
     fi
 
+    success "Deleted old worktree" >&2
+
     # Create fresh worktree
-    echo ""
-    echo -e "${BLUE}Creating fresh worktree for '$branch'...${NC}"
-    if cmd_add "$branch" 2>&1; then
-        echo ""
-        echo -e "${GREEN}✓ Worktree recreated successfully${NC}"
-        echo ""
-        echo "Press any key to continue..."
-        read -r -n 1
-    else
-        echo ""
-        echo -e "${RED}✗ Failed to recreate worktree${NC}"
-        echo ""
-        echo "Press any key to continue..."
-        read -r -n 1
-        return 1
-    fi
+    info "Creating fresh worktree..." >&2
+    cmd_add "$branch" >&2
 }
 
 # Interactive fuzzy finder mode
@@ -489,8 +522,8 @@ cmd_interactive() {
         --border \
         --height 100% \
         --no-select-1 \
-        --bind "d:execute($script_path __delete {})+reload($script_path __list-branches)" \
-        --bind "r:execute($script_path __recreate {})+reload($script_path __list-branches)" < "$fifo")
+        --bind "d:execute-silent($script_path __delete {})+reload($script_path __list-branches)" \
+        --bind "r:execute-silent($script_path __recreate {})+reload($script_path __list-branches)" < "$fifo")
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null
