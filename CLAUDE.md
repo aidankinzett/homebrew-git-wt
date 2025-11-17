@@ -19,10 +19,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 All worktrees are stored at: `<base-path>/<project-name>/<branch-name>`
 
 Where:
+
 - `<base-path>` is configurable (default: `~/Git/.worktrees`)
 - `<project-name>` is extracted from the git remote URL (falls back to directory name if no remote)
 
 **Base path priority:**
+
 1. Local git config: `git config --local worktree.basepath`
 2. Global git config: `git config --global worktree.basepath`
 3. Environment variable: `$GIT_WT_BASE`
@@ -69,6 +71,7 @@ brew upgrade --fetch-HEAD git-wt
 ### Linting
 
 Use `shellcheck` for bash linting:
+
 ```bash
 shellcheck git-wt
 ```
@@ -78,6 +81,7 @@ shellcheck git-wt
 ### Branch Detection Priority (git-wt:149-174)
 
 The script checks for branches in this order:
+
 1. **Local branch exists** → Use it (most common case)
 2. **Remote branch exists** → Create local tracking branch
 3. **Neither exists** → Create new branch from current HEAD
@@ -87,6 +91,7 @@ This prioritization matches git's default behavior and prevents accidentally cre
 ### Package Manager Detection (git-wt:91-108)
 
 Detection based on lock files in this order:
+
 1. `pnpm-lock.yaml` → pnpm
 2. `yarn.lock` → yarn
 3. `package-lock.json` → npm
@@ -155,6 +160,7 @@ brew install --HEAD git-wt         # Installs Formula/git-wt.rb
 3. That's it - users can now install/update
 
 Users update with:
+
 ```bash
 # Reinstall to get latest from HEAD (always reinstalls even if no changes)
 brew reinstall git-wt
@@ -164,6 +170,7 @@ brew upgrade --fetch-HEAD git-wt
 ```
 
 **No need for:**
+
 - Building/compiling (it's a bash script)
 - CI/CD pipelines
 - Release artifacts
@@ -174,12 +181,14 @@ brew upgrade --fetch-HEAD git-wt
 **Current approach: HEAD-only (no stable releases)**
 
 The formula only defines `head`, which means:
+
 - Users always get the latest commit from main branch
 - No version pinning or git tags needed
 - Install command requires `--HEAD` flag
 - Updates are simple: just push to main
 
 **Why HEAD-only:**
+
 - Project is in active development (fuzzy finder and auto-pruning planned)
 - Faster iteration without release overhead
 - Simpler maintenance for early stage
@@ -187,11 +196,13 @@ The formula only defines `head`, which means:
 **Future: When to add stable releases**
 
 Add a `url` and `sha256` to the formula when:
+
 - Major features are complete and stable (post fuzzy finder + auto-pruning)
 - You want to protect users from breaking changes
 - You need version pinning for compatibility
 
 **Stable release workflow** (for future reference):
+
 1. Create git tag: `git tag v0.2.0 && git push origin v0.2.0`
 2. Download tarball: `curl -sL https://github.com/aidankinzett/homebrew-git-wt/archive/refs/tags/v0.2.0.tar.gz -o release.tar.gz`
 3. Get SHA256: `shasum -a 256 release.tar.gz`
@@ -205,6 +216,7 @@ Add a `url` and `sha256` to the formula when:
 ## Testing Considerations
 
 When testing changes:
+
 - Test with repositories that have remote branches
 - Test with repositories without remotes
 - Test with different package managers (pnpm, yarn, npm, none)
@@ -217,6 +229,7 @@ When testing changes:
 ### Documentation Updates
 
 **IMPORTANT**: Always update the README.md when making changes that affect:
+
 - User-facing behavior (new commands, changed command syntax)
 - Installation instructions
 - Feature availability (moving features from "Planned" to "Current")

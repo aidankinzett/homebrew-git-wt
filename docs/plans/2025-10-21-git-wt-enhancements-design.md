@@ -7,6 +7,7 @@
 ## Problem Statement
 
 Current git-wt pain points:
+
 1. **Worktree collision discovery**: Users don't know if a branch is already checked out in another worktree until they try to create it
 2. **Disk space consumption**: node_modules and build artifacts accumulate in old worktrees that are no longer actively used
 3. **Poor visibility**: Hard to see all worktrees and their state at a glance
@@ -25,6 +26,7 @@ Transform git-wt from a command-based tool to an interactive fuzzy finder with s
 ### Core UX Change
 
 **Before:**
+
 ```bash
 git-wt add feature/dashboard    # Might fail if worktree exists
 git-wt list                     # Check what exists
@@ -32,6 +34,7 @@ git-wt remove feature/old       # Clean up manually
 ```
 
 **After:**
+
 ```bash
 git-wt                          # Interactive fuzzy finder shows all branches
 git-wt feature/dashboard        # Direct access (skip fuzzy finder)
@@ -48,6 +51,7 @@ git-wt [branch]
 ```
 
 **Behavior:**
+
 - **No arguments**: Launch fuzzy finder with all branches
 - **Branch provided**: Skip fuzzy finder, directly create/open that branch
 - **Flags**: Execute specific command (--list, --remove, --help, etc.)
@@ -97,12 +101,12 @@ Preview:
 
 ### Keybindings
 
-| Key | Action | Behavior |
-|-----|--------|----------|
-| `Enter` | Open/Create | If worktree exists, open in Cursor. If not, create then open. |
-| `d` | Delete | Remove worktree, reload fuzzy finder (stays open for next deletion) |
-| `r` | Recreate | Delete + create fresh worktree, open in Cursor |
-| `Esc` | Cancel | Exit fuzzy finder |
+| Key     | Action      | Behavior                                                            |
+| ------- | ----------- | ------------------------------------------------------------------- |
+| `Enter` | Open/Create | If worktree exists, open in Cursor. If not, create then open.       |
+| `d`     | Delete      | Remove worktree, reload fuzzy finder (stays open for next deletion) |
+| `r`     | Recreate    | Delete + create fresh worktree, open in Cursor                      |
+| `Esc`   | Cancel      | Exit fuzzy finder                                                   |
 
 ### Implementation with fzf
 
@@ -117,6 +121,7 @@ fzf \
 ```
 
 **Key fzf features used:**
+
 - `--ansi`: Color support for indicators
 - `--preview`: Right panel showing worktree details
 - `--bind`: Custom keybindings for d/r/enter
@@ -135,6 +140,7 @@ fzf \
 ### Preview Panel Content
 
 For each selected branch, show:
+
 - Branch name and type (local/remote/both)
 - Worktree path (if exists)
 - Git status (clean/dirty, ahead/behind remote)
@@ -283,6 +289,7 @@ User presses 'd' on branch
 **Scenario:** User tries to create worktree for branch that's already checked out elsewhere
 
 **Handling:**
+
 - Fuzzy finder shows `✓` indicator
 - Enter key opens existing worktree (doesn't create duplicate)
 - User can use `r` to recreate if needed
@@ -292,6 +299,7 @@ User presses 'd' on branch
 **Scenario:** Local and remote have same branch name but different commits
 
 **Handling:**
+
 - Prioritize local branch (as git does)
 - Show tracking status in preview pane
 - User can see if local is ahead/behind remote
@@ -301,6 +309,7 @@ User presses 'd' on branch
 **Scenario:** Stale worktree has uncommitted changes
 
 **Handling:**
+
 - Safety guardrail blocks auto-prune
 - Worktree kept with `[STALE]` indicator
 - User can manually review and delete via fuzzy finder
@@ -310,6 +319,7 @@ User presses 'd' on branch
 **Scenario:** User runs `git-wt` but doesn't have fzf
 
 **Handling:**
+
 ```bash
 Error: fzf is required for interactive mode
 Install: brew install fzf (macOS) or apt install fzf (Linux)
@@ -324,6 +334,7 @@ Alternatively, use direct mode:
 **Scenario:** Repo has no `origin` remote
 
 **Handling:**
+
 - Skip `git fetch origin` (show warning)
 - Only show local branches
 - Auto-prune based on time/access only
@@ -333,6 +344,7 @@ Alternatively, use direct mode:
 **Scenario:** `cursor` command not found
 
 **Handling:**
+
 - Fall back to printing path:
   ```
   Worktree ready at: /path/to/worktree
@@ -354,6 +366,7 @@ git-wt prune
 ```
 
 The `add` command becomes an alias for the direct branch mode:
+
 ```bash
 git-wt add feature/branch  →  git-wt feature/branch
 ```
@@ -372,6 +385,7 @@ None. All new features are additive.
 ## Implementation Checklist
 
 ### Phase 1: Fuzzy Finder Core
+
 - [ ] Implement branch list generation
 - [ ] Add worktree detection and indicators
 - [ ] Create fzf integration with keybindings
@@ -380,6 +394,7 @@ None. All new features are additive.
 - [ ] Test with various branch name formats
 
 ### Phase 2: Delete/Recreate Actions
+
 - [ ] Implement `d` keybinding (delete worktree)
 - [ ] Add safety check for uncommitted changes
 - [ ] Implement reload mechanism (keep fuzzy finder open)
@@ -387,6 +402,7 @@ None. All new features are additive.
 - [ ] Add confirmation prompts where needed
 
 ### Phase 3: Auto-Pruning
+
 - [ ] Implement stale detection logic
 - [ ] Add safety guardrails (uncommitted, recent activity)
 - [ ] Create auto-prune function
@@ -395,6 +411,7 @@ None. All new features are additive.
 - [ ] Add disk space calculation and reporting
 
 ### Phase 4: Polish & Error Handling
+
 - [ ] Add fzf installation check
 - [ ] Handle all edge cases (no remote, no cursor, etc.)
 - [ ] Add color-coded output
@@ -403,6 +420,7 @@ None. All new features are additive.
 - [ ] Update help text
 
 ### Phase 5: Documentation
+
 - [ ] Update README with new features
 - [ ] Add examples for fuzzy finder usage
 - [ ] Document configuration options

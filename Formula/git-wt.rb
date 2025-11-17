@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class GitWt < Formula
   desc "Interactive git worktree manager with fuzzy finder"
   homepage "https://github.com/aidankinzett/homebrew-git-wt"

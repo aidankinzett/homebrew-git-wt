@@ -7,16 +7,19 @@ This directory contains unit tests for the `git-wt` bash script using [bats-core
 ### Install bats-core
 
 **macOS:**
+
 ```bash
 brew install bats-core
 ```
 
 **Linux (Debian/Ubuntu):**
+
 ```bash
 sudo apt-get install bats
 ```
 
 **Using npm:**
+
 ```bash
 npm install -g bats
 ```
@@ -28,6 +31,7 @@ brew install bats-support bats-assert bats-file
 ```
 
 Or manually:
+
 ```bash
 git clone https://github.com/bats-core/bats-support test/test_helper/bats-support
 git clone https://github.com/bats-core/bats-assert test/test_helper/bats-assert
@@ -37,21 +41,25 @@ git clone https://github.com/bats-core/bats-file test/test_helper/bats-file
 ## Running Tests
 
 ### Run all tests
+
 ```bash
 bats test/
 ```
 
 ### Run specific test file
+
 ```bash
 bats test/project_name.bats
 ```
 
 ### Run tests with verbose output
+
 ```bash
 bats --verbose test/
 ```
 
 ### Run tests with tap output (for CI)
+
 ```bash
 bats --tap test/
 ```

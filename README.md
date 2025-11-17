@@ -94,6 +94,7 @@ When creating a worktree, git-wt automatically:
 ### Organized Storage
 
 All worktrees are stored in:
+
 ```
 ~/Git/.worktrees/<project-name>/<branch-name>
 ```
