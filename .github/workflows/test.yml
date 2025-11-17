@@ -27,12 +27,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Cache kcov
+        id: cache-kcov
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/kcov
+          key: ${{ runner.os }}-kcov-v42
+
       - name: Install dependencies
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake libcurl4-openssl-dev libelf-dev libdw-dev binutils-dev libiberty-dev
 
       - name: Install kcov
+        if: steps.cache-kcov.outputs.cache-hit != 'true'
         run: |
           wget https://github.com/SimonKagstrom/kcov/archive/refs/tags/v42.tar.gz
           tar xzf v42.tar.gz
@@ -44,7 +53,15 @@ jobs:
           cd ../..
           rm -rf kcov-42 v42.tar.gz
 
+      - name: Cache bats-core
+        id: cache-bats
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/bats
+          key: ${{ runner.os }}-bats-core-latest
+
       - name: Install bats-core
+        if: steps.cache-bats.outputs.cache-hit != 'true'
         run: |
           git clone https://github.com/bats-core/bats-core.git
           cd bats-core
