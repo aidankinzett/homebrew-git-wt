@@ -20,6 +20,29 @@ curl -fsSL https://raw.githubusercontent.com/aidankinzett/homebrew-git-wt/main/g
   -o ~/.local/bin/git-wt && chmod +x ~/.local/bin/git-wt
 ```
 
+## Updating
+
+### Homebrew
+
+Since git-wt is installed from HEAD (latest main branch), you can update to the latest version using:
+
+```bash
+# Update to latest version (only if changes exist)
+brew upgrade --fetch-HEAD git-wt
+
+# Or force reinstall from latest HEAD
+brew reinstall git-wt
+```
+
+### Manual
+
+Re-run the installation command to get the latest version:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aidankinzett/homebrew-git-wt/main/git-wt \
+  -o ~/.local/bin/git-wt && chmod +x ~/.local/bin/git-wt
+```
+
 ## Quick Start
 
 ```bash
