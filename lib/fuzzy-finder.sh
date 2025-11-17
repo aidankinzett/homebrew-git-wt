@@ -141,10 +141,9 @@ show_worktree_info() {
     if [[ -d "$worktree_path" ]]; then
         echo "Worktree: $worktree_path"
 
-        # Git status
-        cd "$worktree_path" 2>/dev/null || return
+        # Git status (use git -C to avoid changing working directory)
         local status
-        status=$(git status --porcelain 2>/dev/null)
+        status=$(git -C "$worktree_path" status --porcelain 2>/dev/null)
         if [[ -z "$status" ]]; then
             echo "Status: Clean ✓"
         else
@@ -180,7 +179,7 @@ show_worktree_info() {
 
         echo ""
         echo "Recent commits:"
-        git log --oneline --color=always -n 3 2>/dev/null | sed 's/^/  /'
+        git -C "$worktree_path" log --oneline --color=always -n 3 2>/dev/null | sed 's/^/  /'
 
     else
         echo "Worktree: Not created"
@@ -384,7 +383,9 @@ cmd_interactive() {
     # Start async auto-prune if enabled
     if [[ "$(git config --get worktree.autoprune 2>/dev/null)" == "true" ]]; then
         # Fork to background, redirect output to temp log
-        (auto_prune_stale_worktrees > /tmp/git-wt-prune-$$.log 2>&1) &
+        local prune_log
+        prune_log=$(mktemp "${TMPDIR:-/tmp}/git-wt-prune.XXXXXX")
+        (auto_prune_stale_worktrees > "$prune_log" 2>&1) &
     fi
 
     # Export functions so they're available to fzf subshells
@@ -423,8 +424,8 @@ cmd_interactive() {
     fifo=$(mktemp -u)
     mkfifo "$fifo"
 
-    # Clean up FIFO on exit
-    trap 'rm -f "$fifo"' EXIT
+    # Clean up FIFO on exit or interrupt
+    trap 'rm -f "$fifo"' EXIT INT TERM
 
     # Background process to generate branches asynchronously
     (
