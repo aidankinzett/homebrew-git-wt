@@ -8,15 +8,21 @@ load test_helper
 setup() {
     setup_test_git_repo
     load_git_wt
-    
+
     # Save original global config if it exists
     ORIGINAL_GLOBAL_CONFIG=$(git config --global --get worktree.basepath 2>/dev/null || true)
     ORIGINAL_ENV_VAR="$GIT_WT_BASE"
-    
+
     LOCAL_BASE="$TEST_TEMP_DIR/local/base"
     GLOBAL_BASE="$TEST_TEMP_DIR/global/base"
     ENV_BASE="$TEST_TEMP_DIR/env/base"
     DEFAULT_BASE="$HOME/Git/.worktrees"
+
+    # Canonicalize expected paths since validate_worktree_path will canonicalize them too
+    LOCAL_BASE=$(canonicalize_path "$LOCAL_BASE")
+    GLOBAL_BASE=$(canonicalize_path "$GLOBAL_BASE")
+    ENV_BASE=$(canonicalize_path "$ENV_BASE")
+    DEFAULT_BASE=$(canonicalize_path "$DEFAULT_BASE")
 
     # Clean up any existing configs
     git config --local --unset worktree.basepath 2>/dev/null || true

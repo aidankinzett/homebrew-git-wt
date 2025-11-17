@@ -20,9 +20,11 @@ last_line() {
 @test "validate_worktree_path expands tilde to home directory" {
     # shellcheck disable=SC2088  # Provide literal tilde to test expansion
     run validate_worktree_path "~/test/path" "test source"
-    
+
     [ "$status" -eq 0 ]
-    [ "$(last_line)" = "$HOME/test/path" ]
+    # Path will be canonicalized by validate_worktree_path
+    expected=$(canonicalize_path "$HOME/test/path")
+    [ "$(last_line)" = "$expected" ]
 }
 
 @test "validate_worktree_path rejects paths with semicolon" {
@@ -70,17 +72,21 @@ last_line() {
 @test "validate_worktree_path accepts valid absolute paths" {
     local path="$TEST_TEMP_DIR/absolute/test/path"
     run validate_worktree_path "$path" "test source"
-    
+
     [ "$status" -eq 0 ]
-    [ "$(last_line)" = "$path" ]
+    # Path will be canonicalized
+    expected=$(canonicalize_path "$path")
+    [ "$(last_line)" = "$expected" ]
 }
 
 @test "validate_worktree_path removes trailing slashes" {
     local path="$TEST_TEMP_DIR/trailing/test/path"
     run validate_worktree_path "${path}/" "test source"
-    
+
     [ "$status" -eq 0 ]
-    [ "$(last_line)" = "$path" ]
+    # Path will be canonicalized (trai ling slash removed and symlinks resolved)
+    expected=$(canonicalize_path "$path")
+    [ "$(last_line)" = "$expected" ]
 }
 
 @test "validate_worktree_path canonicalizes paths with realpath when available" {

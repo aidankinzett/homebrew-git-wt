@@ -48,3 +48,16 @@ load_git_wt() {
     # shellcheck disable=SC1091
     source "$BATS_TEST_DIRNAME/../git-wt"
 }
+
+# Canonicalize a path the same way validate_worktree_path does
+canonicalize_path() {
+    local path="$1"
+    # Use grealpath if available (GNU coreutils), otherwise use realpath or return as-is
+    if command -v grealpath &> /dev/null; then
+        grealpath -m "$path" 2>/dev/null || echo "$path"
+    elif command -v realpath &> /dev/null; then
+        realpath -m "$path" 2>/dev/null || echo "$path"
+    else
+        echo "$path"
+    fi
+}
