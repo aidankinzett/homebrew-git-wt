@@ -12,7 +12,7 @@ cmd_add() {
         exit 1
     fi
 
-    check_git_repo
+    check_git_repo || exit 1
 
     local project_name
     project_name=$(get_project_name)
@@ -83,31 +83,34 @@ cmd_add() {
         info "Detected package manager: $pkg_manager"
         info "Installing dependencies..."
 
-        cd "$worktree_path" || exit 1
+        # Run in subshell to avoid changing caller's working directory
+        (
+            cd "$worktree_path" || { warning "Failed to change to worktree directory"; exit 1; }
 
-        case "$pkg_manager" in
-            pnpm)
-                if pnpm install; then
-                    success "Dependencies installed successfully"
-                else
-                    warning "Failed to install dependencies"
-                fi
-                ;;
-            yarn)
-                if yarn install; then
-                    success "Dependencies installed successfully"
-                else
-                    warning "Failed to install dependencies"
-                fi
-                ;;
-            npm)
-                if npm install; then
-                    success "Dependencies installed successfully"
-                else
-                    warning "Failed to install dependencies"
-                fi
-                ;;
-        esac
+            case "$pkg_manager" in
+                pnpm)
+                    if pnpm install; then
+                        success "Dependencies installed successfully"
+                    else
+                        warning "Failed to install dependencies"
+                    fi
+                    ;;
+                yarn)
+                    if yarn install; then
+                        success "Dependencies installed successfully"
+                    else
+                        warning "Failed to install dependencies"
+                    fi
+                    ;;
+                npm)
+                    if npm install; then
+                        success "Dependencies installed successfully"
+                    else
+                        warning "Failed to install dependencies"
+                    fi
+                    ;;
+            esac
+        )
     fi
 
     echo ""
@@ -125,7 +128,7 @@ cmd_add() {
 
 # List all worktrees for current project
 cmd_list() {
-    check_git_repo
+    check_git_repo || exit 1
 
     # Check for migration notice
     check_worktree_migration
@@ -175,7 +178,7 @@ cmd_remove() {
         exit 1
     fi
 
-    check_git_repo
+    check_git_repo || exit 1
 
     local project_name
     project_name=$(get_project_name)
@@ -206,7 +209,7 @@ cmd_remove() {
 
 # Prune stale worktree references
 cmd_prune() {
-    check_git_repo
+    check_git_repo || exit 1
 
     info "Pruning stale worktree references..."
 

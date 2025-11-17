@@ -375,7 +375,7 @@ recreate_worktree() {
 
 # Interactive fuzzy finder mode
 cmd_interactive() {
-    check_git_repo
+    check_git_repo || exit 1
     check_fzf
 
     # Check for migration notice

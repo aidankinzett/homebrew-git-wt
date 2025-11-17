@@ -1,6 +1,13 @@
 #!/bin/bash
 
 # Package manager detection and environment file management
+#
+# Prerequisites:
+#   - Expected helper functions (provided by the calling environment):
+#     * info()    - Log informational messages
+#     * warning() - Log warning messages
+#     * success() - Log success messages
+#   - These are typically sourced from lib/colors.sh
 
 # Detect package manager
 detect_package_manager() {
@@ -42,11 +49,30 @@ symlink_env_files() {
             filename=$(basename "$env_file")
             local target="$target_dir/$filename"
 
+            # Resolve to absolute path to avoid broken relative symlinks
+            local abs_env_file
+            if command -v realpath &> /dev/null; then
+                abs_env_file=$(realpath "$env_file" 2>/dev/null)
+            elif command -v readlink &> /dev/null; then
+                abs_env_file=$(readlink -f "$env_file" 2>/dev/null)
+            else
+                # Fallback: assume find already returned absolute paths from source_dir
+                abs_env_file="$env_file"
+            fi
+
+            if [[ ! -f "$abs_env_file" ]]; then
+                warning "Could not resolve absolute path for $filename, skipping"
+                continue
+            fi
+
             if [[ -e "$target" ]]; then
                 warning "Skipping $filename (already exists in worktree)"
             else
-                ln -s "$env_file" "$target"
-                success "  Linked $filename"
+                if ln -s "$abs_env_file" "$target" 2>/dev/null; then
+                    success "  Linked $filename"
+                else
+                    warning "Failed to create symlink for $filename"
+                fi
             fi
         fi
     done <<< "$env_files"

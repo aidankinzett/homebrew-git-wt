@@ -60,7 +60,7 @@ main() {
             success "Auto-pruning disabled for this repository"
             ;;
         --cleanup)
-            check_git_repo
+            check_git_repo || exit 1
             info "Checking for stale worktrees..."
             auto_prune_stale_worktrees
             ;;

@@ -145,7 +145,7 @@ teardown() {
     [ ! -d "$worktree_path" ]
 }
 
-@test "recreate_worktree recreates clean worktree successfully" {
+@test "recreate_worktree recreates worktree with uncommitted changes after confirmation" {
     # Create a worktree
     local branch="feature/recreate"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"

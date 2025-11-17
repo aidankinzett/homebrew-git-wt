@@ -1,6 +1,14 @@
 #!/bin/bash
 
 # Core worktree operations
+#
+# Prerequisites:
+#   - Required functions (must be sourced before this file):
+#     * get_project_name() - from lib/git-utils.sh
+#     * get_main_worktree() - from lib/git-utils.sh
+#   - Required environment variables:
+#     * WORKTREE_BASE - base path for storing worktrees (e.g., ~/Git/.worktrees)
+#   - These are typically set up by the main git-wt script before sourcing this file
 
 # Check if branch has a worktree
 has_worktree() {
@@ -34,10 +42,14 @@ is_worktree_stale() {
     fi
 
     # Check if branch is merged into main/master
-    if git branch --merged "$main_branch" 2>/dev/null | grep -q "^[* ]*$branch$"; then
-        # Safety guardrail: Check for uncommitted changes
-        cd "$worktree_path" 2>/dev/null || return 1
-        if [[ -z "$(git status --porcelain 2>/dev/null)" ]]; then
+    # Use awk for literal string matching to avoid regex injection
+    if git branch --merged "$main_branch" 2>/dev/null | awk -v b="$branch" '$0 ~ "^[* ]*" b "$" {found=1} END {exit !found}'; then
+        # Safety guardrail: Check for uncommitted changes (use git -C to avoid changing shell state)
+        local status
+        if ! status=$(git -C "$worktree_path" status --porcelain 2>/dev/null); then
+            return 1
+        fi
+        if [[ -z "$status" ]]; then
             return 0  # Is stale and safe to prune
         fi
     fi
