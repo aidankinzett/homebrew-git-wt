@@ -100,31 +100,34 @@ last_line() {
 @test "get_worktree_base expands tilde in local config" {
     # shellcheck disable=SC2088  # Store literal tilde to verify script expansion
     git config --local worktree.basepath "~/custom/worktrees"
-    
+
     run get_worktree_base
-    
+
     [ "$status" -eq 0 ]
-    [ "$(last_line)" = "$HOME/custom/worktrees" ]
+    expected=$(canonicalize_path "$HOME/custom/worktrees")
+    [ "$(last_line)" = "$expected" ]
 }
 
 @test "get_worktree_base expands tilde in global config" {
     # shellcheck disable=SC2088  # Store literal tilde to verify script expansion
     git config --global worktree.basepath "~/custom/worktrees"
-    
+
     run get_worktree_base
-    
+
     [ "$status" -eq 0 ]
-    [ "$(last_line)" = "$HOME/custom/worktrees" ]
+    expected=$(canonicalize_path "$HOME/custom/worktrees")
+    [ "$(last_line)" = "$expected" ]
 }
 
 @test "get_worktree_base expands tilde in environment variable" {
     # shellcheck disable=SC2088  # Provide literal tilde for validate_worktree_path
     export GIT_WT_BASE="~/custom/worktrees"
-    
+
     run get_worktree_base
-    
+
     [ "$status" -eq 0 ]
-    [ "$(last_line)" = "$HOME/custom/worktrees" ]
+    expected=$(canonicalize_path "$HOME/custom/worktrees")
+    [ "$(last_line)" = "$expected" ]
 }
 
 @test "get_worktree_base falls back when local config is invalid" {
