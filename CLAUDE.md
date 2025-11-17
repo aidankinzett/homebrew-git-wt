@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`git-wt` is a Bash-based interactive git worktree manager that simplifies creating, managing, and cleaning up git worktrees. It's distributed as a Homebrew tap.
+`git-wt` is a Bash-based interactive Git worktree manager that simplifies creating, managing, and cleaning up Git worktrees. It's distributed as a Homebrew tap.
 
 ## Architecture
 
@@ -21,12 +21,12 @@ All worktrees are stored at: `<base-path>/<project-name>/<branch-name>`
 Where:
 
 - `<base-path>` is configurable (default: `~/Git/.worktrees`)
-- `<project-name>` is extracted from the git remote URL (falls back to directory name if no remote)
+- `<project-name>` is extracted from the Git remote URL (falls back to directory name if no remote)
 
 **Base path priority:**
 
-1. Local git config: `git config --local worktree.basepath`
-2. Global git config: `git config --global worktree.basepath`
+1. Local Git config: `git config --local worktree.basepath`
+2. Global Git config: `git config --global worktree.basepath`
 3. Environment variable: `$GIT_WT_BASE`
 4. Default: `~/Git/.worktrees`
 
@@ -70,7 +70,7 @@ brew upgrade --fetch-HEAD git-wt
 
 ### Linting
 
-Use `shellcheck` for bash linting:
+Use `shellcheck` for Bash linting:
 
 ```bash
 shellcheck git-wt
@@ -90,7 +90,7 @@ This prioritization matches git's default behavior and prevents accidentally cre
 
 ### Package Manager Detection (git-wt:91-108)
 
-Detection based on lock files in this order:
+Detection based on lockfiles in this order:
 
 1. `pnpm-lock.yaml` → pnpm
 2. `yarn.lock` → yarn
@@ -171,7 +171,7 @@ brew upgrade --fetch-HEAD git-wt
 
 **No need for:**
 
-- Building/compiling (it's a bash script)
+- Building/compiling (it's a Bash script)
 - CI/CD pipelines
 - Release artifacts
 - Git tags or releases

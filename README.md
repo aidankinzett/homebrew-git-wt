@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/aidankinzett/homebrew-git-wt/actions/workflows/test.yml/badge.svg)](https://github.com/aidankinzett/homebrew-git-wt/actions/workflows/test.yml)
 
-Interactive git worktree manager with automatic dependency installation and smart cleanup.
+Interactive Git worktree manager with automatic dependency installation and smart cleanup.
 
 ## Installation
 
@@ -120,20 +120,20 @@ When enabled, git-wt automatically removes worktrees for branches that have been
 
 ### Custom Worktree Path
 
-You can customize where worktrees are stored using git config or environment variables:
+You can customize where worktrees are stored using Git config or environment variables:
 
 ```bash
 # Set globally for all repositories
-git config --global worktree.basepath ~/custom/path
+Git config --global worktree.basepath ~/custom/path
 
 # Set for current repository only
-git config --local worktree.basepath ~/custom/path
+Git config --local worktree.basepath ~/custom/path
 
 # Or use environment variable
 export GIT_WT_BASE=~/custom/path
 ```
 
-**Priority order:** local git config > global git config > environment variable > default (`~/Git/.worktrees`)
+**Priority order:** local Git config > global Git config > environment variable > default (`~/Git/.worktrees`)
 
 ### Migrating Existing Worktrees
 
@@ -150,7 +150,7 @@ NEW_PATH=~/custom/path
 mv $OLD_PATH/my-project $NEW_PATH/my-project
 
 # Update git's worktree references
-git worktree repair
+Git worktree repair
 ```
 
 **Option 2: Keep worktrees in place and adjust your configuration**
@@ -159,10 +159,10 @@ If you have existing worktrees you want to keep using:
 
 ```bash
 # Check where your existing worktrees are
-git worktree list
+Git worktree list
 
 # Set your config to match that location
-git config --global worktree.basepath /path/to/existing/worktrees
+Git config --global worktree.basepath /path/to/existing/worktrees
 ```
 
 **Note:** git-wt will warn you if it detects existing worktrees in different locations when you run `git-wt --list` or `git-wt`.

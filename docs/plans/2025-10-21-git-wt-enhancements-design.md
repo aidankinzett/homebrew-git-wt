@@ -160,7 +160,7 @@ A worktree is considered **stale** when ANY of these conditions are true:
    - OR branch has been merged into `main`/`master`
 
 2. **Time-based staleness**
-   - Last git commit > 14 days ago (configurable)
+   - Last Git commit > 14 days ago (configurable)
    - AND no files modified in last 24 hours
 
 3. **Access-based staleness**
@@ -275,7 +275,7 @@ User presses 'd' on branch
             ├─ Has uncommitted changes? → Warn, ask confirmation
             └─ Clean → Delete worktree
                       ↓
-                      git worktree remove --force
+                      Git worktree remove --force
                       ↓
                       Regenerate branch list
                       ↓
@@ -300,7 +300,7 @@ User presses 'd' on branch
 
 **Handling:**
 
-- Prioritize local branch (as git does)
+- Prioritize local branch (as Git does)
 - Show tracking status in preview pane
 - User can see if local is ahead/behind remote
 
@@ -331,7 +331,7 @@ Alternatively, use direct mode:
 
 ### No Remote Configured
 
-**Scenario:** Repo has no `origin` remote
+**Scenario:** repository has no `origin` remote
 
 **Handling:**
 
@@ -421,7 +421,7 @@ None. All new features are additive.
 
 ### Phase 5: Documentation
 
-- [ ] Update README with new features
+- [ ] Update readme with new features
 - [ ] Add examples for fuzzy finder usage
 - [ ] Document configuration options
 - [ ] Create troubleshooting guide

@@ -1,6 +1,6 @@
 # Testing git-wt
 
-This directory contains unit tests for the `git-wt` bash script using [bats-core](https://github.com/bats-core/bats-core).
+This directory contains unit tests for the `git-wt` Bash script using [bats-core](https://github.com/bats-core/bats-core).
 
 ## Setup
 
