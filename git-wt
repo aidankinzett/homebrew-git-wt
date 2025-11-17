@@ -7,26 +7,33 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source library files
-# shellcheck source=lib/colors.sh
-source "$SCRIPT_DIR/lib/colors.sh"
-# shellcheck source=lib/validation.sh
-source "$SCRIPT_DIR/lib/validation.sh"
-# shellcheck source=lib/config.sh
-source "$SCRIPT_DIR/lib/config.sh"
-# shellcheck source=lib/git-utils.sh
-source "$SCRIPT_DIR/lib/git-utils.sh"
-# shellcheck source=lib/package-manager.sh
-source "$SCRIPT_DIR/lib/package-manager.sh"
-# shellcheck source=lib/worktree-ops.sh
-source "$SCRIPT_DIR/lib/worktree-ops.sh"
-# shellcheck source=lib/fuzzy-finder.sh
-source "$SCRIPT_DIR/lib/fuzzy-finder.sh"
-# shellcheck source=lib/commands.sh
-source "$SCRIPT_DIR/lib/commands.sh"
+# Helper to source library files with error handling
+source_lib() {
+    local lib="$1"
+    # shellcheck source=/dev/null
+    if ! source "$SCRIPT_DIR/lib/$lib" 2>/dev/null; then
+        echo "Error: Failed to source lib/$lib" >&2
+        echo "Please ensure git-wt is properly installed" >&2
+        exit 1
+    fi
+}
 
-# Base directory for all worktrees
+# Source library files
+source_lib "colors.sh"
+source_lib "validation.sh"
+source_lib "config.sh"
+source_lib "git-utils.sh"
+source_lib "package-manager.sh"
+source_lib "worktree-ops.sh"
+source_lib "fuzzy-finder.sh"
+source_lib "commands.sh"
+
+# Base directory for all worktrees - validate it's not empty
 WORKTREE_BASE=$(get_worktree_base)
+if [[ -z "$WORKTREE_BASE" ]]; then
+    echo "Error: Failed to determine worktree base path" >&2
+    exit 1
+fi
 export WORKTREE_BASE
 
 # Main command dispatcher
