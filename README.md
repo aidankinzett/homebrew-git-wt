@@ -1,6 +1,7 @@
 # git-wt
 
 [![Tests](https://github.com/aidankinzett/homebrew-git-wt/actions/workflows/test.yml/badge.svg)](https://github.com/aidankinzett/homebrew-git-wt/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/aidankinzett/homebrew-git-wt/branch/main/graph/badge.svg)](https://codecov.io/gh/aidankinzett/homebrew-git-wt)
 
 Interactive git worktree manager with automatic dependency installation and smart cleanup.
 
