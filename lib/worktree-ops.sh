@@ -33,8 +33,21 @@ has_worktree() {
 }
 
 # Get worktree path for branch
+# Returns the actual path where the worktree is located
+# Checks git's registered worktrees first (handles legacy locations), then falls back to expected path
 get_worktree_path() {
     local branch="$1"
+
+    # First try to find the actual worktree from git's registry
+    # This handles worktrees in legacy or non-standard locations
+    local worktree_path
+    worktree_path=$(git worktree list --porcelain 2>/dev/null | grep "^worktree .*/$branch$" | awk '{print $2}')
+    if [[ -n "$worktree_path" ]]; then
+        echo "$worktree_path"
+        return
+    fi
+
+    # Fall back to the expected path based on WORKTREE_BASE
     local project_name
     project_name=$(get_project_name)
     echo "$WORKTREE_BASE/$project_name/$branch"
