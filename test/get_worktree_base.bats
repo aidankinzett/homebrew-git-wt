@@ -18,11 +18,12 @@ setup() {
     ENV_BASE="$TEST_TEMP_DIR/env/base"
     DEFAULT_BASE="$HOME/Git/.worktrees"
 
-    # Canonicalize expected paths since validate_worktree_path will canonicalize them too
+    # Canonicalize expected paths since validate_worktree_path will canonicalize them
+    # (but DEFAULT_BASE is returned directly without canonicalization)
     LOCAL_BASE=$(canonicalize_path "$LOCAL_BASE")
     GLOBAL_BASE=$(canonicalize_path "$GLOBAL_BASE")
     ENV_BASE=$(canonicalize_path "$ENV_BASE")
-    DEFAULT_BASE=$(canonicalize_path "$DEFAULT_BASE")
+    # Note: DEFAULT_BASE is not canonicalized by get_worktree_base, so we keep it as-is
 
     # Clean up any existing configs
     git config --local --unset worktree.basepath 2>/dev/null || true
