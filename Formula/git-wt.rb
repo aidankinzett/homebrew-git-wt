@@ -4,6 +4,7 @@ class GitWt < Formula
   head "https://github.com/aidankinzett/homebrew-git-wt.git", branch: "main"
 
   depends_on "fzf"
+  depends_on "coreutils"
 
   def install
     libexec.install "git-wt", "lib"
