@@ -58,20 +58,20 @@ git-wt [branch]
 
 ### Flag Commands
 
-```bash
+````bash
 git-wt --list / -l              # List all worktrees (existing behavior)
 git-wt --remove [branch] / -r   # Remove worktree (interactive if no branch)
 git-wt --prune / -p             # Prune stale worktree references
 git-wt --cleanup                # Force cleanup of all stale worktrees
 git-wt --help / -h              # Show help
 git-wt --no-autoprune           # Skip auto-prune for this command
-```
+```bash
 
 ## Fuzzy Finder Design
 
 ### Display Format
 
-```
+```text
   feature/dashboard-redesign      ✓  ~/Git/.worktrees/control-centre/...
   feature/new-api                    [remote only]
   fix/login-bug                   ✓  ~/Git/.worktrees/control-centre/...
@@ -90,7 +90,7 @@ Preview:
   - 849709 Add new fonts (5 hours ago)
 ────────────────────────────────────────────────────────────────────
 [Enter] Open  [d] Delete  [r] Recreate  [Esc] Cancel
-```
+````
 
 ### Indicators
 
@@ -186,7 +186,7 @@ Every `git-wt` command automatically:
 2. Apply safety guardrails
 3. Remove safe-to-delete worktrees
 4. Display summary:
-   ```
+   ```text
    [Auto-pruned 2 stale worktrees: feature/old-branch, fix/merged-pr] (1.8GB freed)
    ```
 
@@ -220,7 +220,7 @@ git-wt --cleanup --dry-run
 
 ### Opening Fuzzy Finder
 
-```
+```text
 git-wt
   ↓
   1. Check for stale worktrees → Auto-prune if enabled
@@ -246,7 +246,7 @@ git-wt
 
 ### Create/Open Worktree Flow
 
-```
+```text
 User presses Enter on branch
   ↓
   Does worktree exist?
@@ -265,7 +265,7 @@ User presses Enter on branch
 
 ### Delete Worktree Flow
 
-```
+```text
 User presses 'd' on branch
   ↓
   Check if worktree exists

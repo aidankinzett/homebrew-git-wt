@@ -34,7 +34,7 @@ brew upgrade --fetch-HEAD git-wt
 brew reinstall git-wt
 ```
 
-### Manual
+### Manual Installation
 
 Re-run the installation command to get the latest version:
 
@@ -95,7 +95,7 @@ When creating a worktree, git-wt automatically:
 
 All worktrees are stored in:
 
-```
+```text
 ~/Git/.worktrees/<project-name>/<branch-name>
 ```
 
