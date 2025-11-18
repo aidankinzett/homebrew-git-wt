@@ -263,7 +263,7 @@ cmd_refresh_env() {
                 current_path=""
                 current_branch=""
             fi
-        done < <(git worktree list --porcelain)
+        done < <(git worktree list --porcelain; echo "")
 
         if [[ -z "$worktree_path" ]]; then
             error "No worktree found for branch: $branch_name"
