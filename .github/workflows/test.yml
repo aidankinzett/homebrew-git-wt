@@ -75,6 +75,14 @@ jobs:
         run: |
           mkdir -p coverage test-results
           kcov --exclude-pattern=/usr,/tmp coverage/ bats --report-formatter junit --output test-results/ test/
+          # Rename JUnit XML files to include 'junit' in the filename for Codecov
+          for file in test-results/*.xml; do
+            if [ -f "$file" ]; then
+              dir=$(dirname "$file")
+              base=$(basename "$file" .xml)
+              mv "$file" "$dir/${base}-junit.xml"
+            fi
+          done
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -89,6 +97,7 @@ jobs:
         with:
           directory: ./test-results
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: '**/*-junit.xml'
 
   # Optional: Test on macOS as well since that's the primary platform
   test-macos:
