@@ -234,16 +234,36 @@ cmd_refresh_env() {
         exit 1
     fi
 
-    # Get project name for path resolution
-    local project_name
-    project_name=$(get_project_name)
-
     if [[ -n "$branch_name" ]]; then
-        # Refresh specific worktree
-        local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
+        # Refresh specific worktree - find it using git worktree list
+        local worktree_path=""
+        local current_path=""
+        local current_branch=""
 
-        if [[ ! -d "$worktree_path" ]]; then
-            error "Worktree does not exist: $worktree_path"
+        # Parse git worktree list --porcelain to find the worktree for this branch
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^worktree\ (.+)$ ]]; then
+                current_path="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^branch\ refs/heads/(.+)$ ]]; then
+                current_branch="${BASH_REMATCH[1]}"
+                if [[ "$current_branch" == "$branch_name" ]]; then
+                    worktree_path="$current_path"
+                    break
+                fi
+            elif [[ -z "$line" ]]; then
+                # Empty line marks end of worktree entry
+                current_path=""
+                current_branch=""
+            fi
+        done < <(git worktree list --porcelain)
+
+        if [[ -z "$worktree_path" ]]; then
+            error "No worktree found for branch: $branch_name"
+            exit 1
+        fi
+
+        if [[ "$worktree_path" == "$main_worktree" ]]; then
+            error "Cannot refresh main worktree (it is the source of env files)"
             exit 1
         fi
 
@@ -253,40 +273,40 @@ cmd_refresh_env() {
         echo ""
         success "Env symlinks refreshed for $branch_name"
     else
-        # Refresh all worktrees for this project
-        local project_base="$WORKTREE_BASE/$project_name"
-
-        if [[ ! -d "$project_base" ]]; then
-            info "No worktrees found for project: $project_name"
-            return
-        fi
-
-        info "Refreshing env symlinks for all worktrees in project: $project_name"
+        # Refresh all worktrees - use git worktree list as authoritative source
+        info "Refreshing env symlinks for all worktrees"
         echo ""
 
         local refreshed_count=0
         local failed_count=0
+        local current_path=""
+        local current_branch=""
 
-        # Iterate through all worktree directories
-        while IFS= read -r worktree_dir; do
-            if [[ -d "$worktree_dir/.git" ]] || [[ -f "$worktree_dir/.git" ]]; then
-                local worktree_name
-                worktree_name=$(basename "$worktree_dir")
-
+        # Parse git worktree list --porcelain to get all worktrees
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^worktree\ (.+)$ ]]; then
+                current_path="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^branch\ refs/heads/(.+)$ ]]; then
+                current_branch="${BASH_REMATCH[1]}"
+            elif [[ -z "$line" ]] && [[ -n "$current_path" ]]; then
+                # Empty line marks end of worktree entry - process it
                 # Skip the main worktree (it's the source of truth)
-                if [[ "$worktree_dir" == "$main_worktree" ]]; then
-                    continue
+                if [[ "$current_path" != "$main_worktree" ]]; then
+                    local display_name="${current_branch:-$(basename "$current_path")}"
+                    info "Processing: $display_name"
+                    if refresh_env_symlinks "$main_worktree" "$current_path"; then
+                        ((refreshed_count++))
+                    else
+                        ((failed_count++))
+                    fi
+                    echo ""
                 fi
 
-                info "Processing: $worktree_name"
-                if refresh_env_symlinks "$main_worktree" "$worktree_dir"; then
-                    ((refreshed_count++))
-                else
-                    ((failed_count++))
-                fi
-                echo ""
+                # Reset for next entry
+                current_path=""
+                current_branch=""
             fi
-        done < <(find "$project_base" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+        done < <(git worktree list --porcelain; echo "") # Add empty line to process last entry
 
         if [[ $refreshed_count -eq 0 ]] && [[ $failed_count -eq 0 ]]; then
             info "No worktrees found to refresh"
