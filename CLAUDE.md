@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Pushing to Remote
+
+You are allowed to commit, but don't push up to GitHub unless instructed by the user.
+
 ## Project Overview
 
 `git-wt` is a Bash-based interactive git worktree manager that simplifies creating, managing, and cleaning up git worktrees. It's distributed as a Homebrew tap.
