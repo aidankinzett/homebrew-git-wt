@@ -2,6 +2,9 @@
 
 # Git utility functions
 
+# Cache for get_main_worktree()
+_main_worktree_cache=""
+
 # Check if we're in a git repository
 # Returns 1 if not in a git repo, 0 if in a git repo
 check_git_repo() {
@@ -44,6 +47,12 @@ get_project_name() {
 # Get the main worktree path
 # Returns the path on success, exits with error on failure
 get_main_worktree() {
+    # Return cached result if available
+    if [[ -n "$_main_worktree_cache" ]]; then
+        echo "$_main_worktree_cache"
+        return 0
+    fi
+
     local output
     if ! output=$(git worktree list 2>&1); then
         echo "Failed to get worktree list" >&2
@@ -58,5 +67,7 @@ get_main_worktree() {
         return 1
     fi
 
+    # Cache the result
+    _main_worktree_cache="$main_worktree"
     echo "$main_worktree"
 }

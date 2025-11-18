@@ -2,6 +2,26 @@
 
 # Fuzzy finder functionality
 
+# Cache for branch lists
+_local_branches_cache=""
+_remote_branches_cache=""
+
+# Get cached local branches
+get_local_branches_cached() {
+    if [[ -z "$_local_branches_cache" ]]; then
+        _local_branches_cache=$(git branch --format='%(refname:short)' 2>/dev/null)
+    fi
+    echo "$_local_branches_cache"
+}
+
+# Get cached remote branches
+get_remote_branches_cached() {
+    if [[ -z "$_remote_branches_cache" ]]; then
+        _remote_branches_cache=$(git branch -r --format='%(refname:short)' 2>/dev/null)
+    fi
+    echo "$_remote_branches_cache"
+}
+
 # Check if fzf is installed
 check_fzf() {
     if ! command -v fzf &> /dev/null; then
@@ -29,10 +49,10 @@ generate_branch_list() {
     # Get branches based on mode
     local branches=()
 
-    # Local branches
+    # Local branches (use cached version)
     while IFS= read -r branch; do
         branches+=("$branch|local")
-    done < <(git branch --format='%(refname:short)' 2>/dev/null)
+    done < <(get_local_branches_cached)
 
     # Remote branches (excluding HEAD) - only if mode is "all"
     if [[ "$mode" == "all" ]]; then
@@ -43,7 +63,7 @@ generate_branch_list() {
             if [[ "$branch_name" != "HEAD" ]] && ! [[ " ${branches[*]} " == *" $branch_name|local "* ]]; then
                 branches+=("$branch_name|remote")
             fi
-        done < <(git branch -r --format='%(refname:short)' 2>/dev/null | grep "^origin/")
+        done < <(get_remote_branches_cached | grep "^origin/")
     fi
 
     # Sort and format branches with indicators
@@ -288,6 +308,7 @@ delete_worktree_with_check() {
 
     # Delete worktree silently
     if git worktree remove --force "$worktree_path" 2>/dev/null; then
+        invalidate_worktree_cache
         # Clean up empty parent directories
         local parent_dir
         parent_dir="$(dirname "$worktree_path")"
@@ -347,6 +368,7 @@ delete_worktree_interactive() {
 
     # Delete worktree
     if git worktree remove --force "$worktree_path" 2>/dev/null; then
+        invalidate_worktree_cache
         # Clean up empty parent directories
         local parent_dir
         parent_dir="$(dirname "$worktree_path")"
@@ -412,6 +434,8 @@ recreate_worktree() {
         error "Failed to delete worktree" >&2
         return 1
     fi
+
+    invalidate_worktree_cache
 
     # Clean up empty parent directories
     local parent_dir

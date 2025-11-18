@@ -50,6 +50,7 @@ cmd_add() {
         # Local branch exists - use it (most common case)
         if git worktree add "$worktree_path" "$branch_name" 2>/dev/null; then
             success "Worktree created from local branch '$branch_name'"
+            invalidate_worktree_cache
         else
             error "Failed to create worktree from local branch"
             exit 1
@@ -58,6 +59,7 @@ cmd_add() {
         # Remote branch exists but no local - create local tracking remote
         if git worktree add --track -b "$branch_name" "$worktree_path" "origin/$branch_name" 2>/dev/null; then
             success "Worktree created from remote branch 'origin/$branch_name'"
+            invalidate_worktree_cache
         else
             error "Failed to create worktree from remote branch"
             exit 1
@@ -66,6 +68,7 @@ cmd_add() {
         # Branch doesn't exist anywhere - create new branch
         if git worktree add "$worktree_path" -b "$branch_name" 2>/dev/null; then
             success "Worktree created with new branch '$branch_name'"
+            invalidate_worktree_cache
         else
             error "Failed to create worktree with new branch"
             exit 1
@@ -193,6 +196,7 @@ cmd_remove() {
 
     if git worktree remove "$worktree_path" --force; then
         success "Worktree removed successfully"
+        invalidate_worktree_cache
 
         # Clean up empty parent directories
         local parent_dir

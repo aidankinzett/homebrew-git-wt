@@ -10,6 +10,29 @@
 #     * WORKTREE_BASE - base path for storing worktrees (e.g., ~/Git/.worktrees)
 #   - These are typically set up by the main git-wt script before sourcing this file
 
+# Cache for git worktree list --porcelain output
+# This prevents redundant git calls (500+ per fuzzy finder session → 1)
+_worktree_list_cache=""
+_worktree_list_cache_valid=0
+
+# Get cached worktree list
+# Returns the output of 'git worktree list --porcelain' from cache
+# Caches result in memory for the duration of script execution
+get_worktree_list_cached() {
+    if [[ $_worktree_list_cache_valid -eq 0 ]]; then
+        _worktree_list_cache=$(git worktree list --porcelain 2>/dev/null)
+        _worktree_list_cache_valid=1
+    fi
+    echo "$_worktree_list_cache"
+}
+
+# Invalidate worktree cache
+# Call this after any operation that modifies worktrees (add/remove)
+invalidate_worktree_cache() {
+    _worktree_list_cache=""
+    _worktree_list_cache_valid=0
+}
+
 # Check if branch has a worktree
 # Checks both the expected location and git's registered worktrees
 has_worktree() {
@@ -25,7 +48,8 @@ has_worktree() {
 
     # Also check git's registered worktrees (handles worktrees in different locations)
     # This finds worktrees even if they're in legacy locations
-    if git worktree list --porcelain 2>/dev/null | grep -q "^worktree .*/$branch$"; then
+    # Use cached list to avoid redundant git calls
+    if get_worktree_list_cached | grep -q "^worktree .*/$branch$"; then
         return 0
     fi
 
@@ -40,8 +64,9 @@ get_worktree_path() {
 
     # First try to find the actual worktree from git's registry
     # This handles worktrees in legacy or non-standard locations
+    # Use cached list to avoid redundant git calls
     local worktree_path
-    worktree_path=$(git worktree list --porcelain 2>/dev/null | grep "^worktree .*/$branch$" | awk '{print $2}')
+    worktree_path=$(get_worktree_list_cached | grep "^worktree .*/$branch$" | awk '{print $2}')
     if [[ -n "$worktree_path" ]]; then
         echo "$worktree_path"
         return
@@ -117,6 +142,9 @@ auto_prune_stale_worktrees() {
                     pruned=$((pruned + 1))
                     space_freed=$((space_freed + size))
 
+                    # Invalidate cache since we removed a worktree
+                    invalidate_worktree_cache
+
                     # Clean up empty parent directories
                     local parent_dir
                     parent_dir="$(dirname "$wt_path")"
@@ -126,7 +154,7 @@ auto_prune_stale_worktrees() {
                 fi
             fi
         fi
-    done < <(git worktree list --porcelain 2>/dev/null)
+    done < <(get_worktree_list_cached)
 
     # Report if anything was pruned
     if [[ $pruned -gt 0 ]]; then
