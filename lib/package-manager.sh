@@ -140,6 +140,22 @@ refresh_env_symlinks() {
                 continue
             fi
 
+            # Security: Validate symlink target is within source directory
+            local abs_source_dir
+            if command -v realpath &> /dev/null; then
+                abs_source_dir=$(realpath "$source_dir" 2>/dev/null)
+            elif command -v readlink &> /dev/null; then
+                abs_source_dir=$(readlink -f "$source_dir" 2>/dev/null)
+            else
+                abs_source_dir="$source_dir"
+            fi
+
+            # Check that abs_env_file is within abs_source_dir
+            if [[ "$abs_env_file" != "$abs_source_dir"/* ]] && [[ "$abs_env_file" != "$abs_source_dir" ]]; then
+                warning "Skipping $filename (symlink target outside source directory)"
+                continue
+            fi
+
             # Check if a regular file (not symlink) exists - don't overwrite
             if [[ -f "$target" && ! -L "$target" ]]; then
                 warning "Skipping $filename (regular file exists, not a symlink)"

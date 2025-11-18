@@ -269,9 +269,14 @@ cmd_refresh_env() {
 
         info "Refreshing env symlinks for worktree: $branch_name"
         echo ""
-        refresh_env_symlinks "$main_worktree" "$worktree_path"
-        echo ""
-        success "Env symlinks refreshed for $branch_name"
+        if refresh_env_symlinks "$main_worktree" "$worktree_path"; then
+            echo ""
+            success "Env symlinks refreshed for $branch_name"
+        else
+            echo ""
+            error "Failed to refresh env symlinks for $branch_name"
+            exit 1
+        fi
     else
         # Refresh all worktrees - use git worktree list as authoritative source
         info "Refreshing env symlinks for all worktrees"
