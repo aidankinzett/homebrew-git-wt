@@ -57,8 +57,10 @@ jobs:
         id: cache-bats
         uses: actions/cache@v4
         with:
-          path: /usr/local/bin/bats
-          key: ${{ runner.os }}-bats-core-latest
+          path: |
+            /usr/local/bin/bats
+            /usr/local/libexec/bats-core
+          key: ${{ runner.os }}-bats-core-v2
 
       - name: Install bats-core
         if: steps.cache-bats.outputs.cache-hit != 'true'

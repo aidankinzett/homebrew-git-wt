@@ -61,6 +61,9 @@ git-wt --remove feature/my-branch
 
 # Clean up stale references
 git-wt --prune
+
+# Refresh env file symlinks
+git-wt --refresh-env
 ```
 
 ## Features
@@ -115,6 +118,25 @@ git-wt --disable-autoprune
 ```
 
 When enabled, git-wt automatically removes worktrees for branches that have been merged into main/master (only if there are no uncommitted changes).
+
+### Environment File Sync
+
+Keep `.env` files synchronized across all worktrees when they change in the main repository:
+
+```bash
+# Refresh env symlinks in all worktrees
+git-wt --refresh-env
+
+# Refresh env symlinks in a specific worktree
+git-wt --refresh-env feature/my-branch
+```
+
+This is useful when:
+- You rename env files (e.g., from `.env` to `.env.local`)
+- You add new env files to the main repository
+- Env file symlinks become stale or broken
+
+The command removes old env symlinks and creates new ones based on the current `.env*` files in your main worktree.
 
 ## Configuration
 
@@ -197,6 +219,16 @@ git-wt --remove <branch-name>  # or -r
 
 ```bash
 git-wt --prune  # or -p
+```
+
+### Refresh Environment Files
+
+```bash
+# Refresh env symlinks in all worktrees
+git-wt --refresh-env
+
+# Refresh env symlinks in a specific worktree
+git-wt --refresh-env <branch-name>
 ```
 
 ## Development

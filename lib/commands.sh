@@ -221,6 +221,135 @@ cmd_prune() {
     fi
 }
 
+# Refresh env file symlinks in worktrees
+cmd_refresh_env() {
+    check_git_repo || exit 1
+
+    # Validate argument count
+    if [[ $# -gt 1 ]]; then
+        error "Too many arguments. Usage: git-wt --refresh-env [branch-name]"
+        echo "  git-wt --refresh-env              # Refresh all worktrees"
+        echo "  git-wt --refresh-env <branch>     # Refresh specific branch"
+        exit 1
+    fi
+
+    local branch_name="$1"
+    local main_worktree
+    main_worktree=$(git worktree list --porcelain | awk '/^worktree/ {print $2; exit}')
+
+    if [[ -z "$main_worktree" ]]; then
+        error "Could not determine main worktree path"
+        exit 1
+    fi
+
+    if [[ -n "$branch_name" ]]; then
+        # Refresh specific worktree - find it using git worktree list
+        local worktree_path=""
+        local current_path=""
+        local current_branch=""
+
+        # Parse git worktree list --porcelain to find the worktree for this branch
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^worktree\ (.+)$ ]]; then
+                current_path="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^branch\ refs/heads/(.+)$ ]]; then
+                current_branch="${BASH_REMATCH[1]}"
+                if [[ "$current_branch" == "$branch_name" ]]; then
+                    worktree_path="$current_path"
+                    break
+                fi
+            elif [[ -z "$line" ]]; then
+                # Empty line marks end of worktree entry
+                current_path=""
+                current_branch=""
+            fi
+        done < <(git worktree list --porcelain; echo "")
+
+        if [[ -z "$worktree_path" ]]; then
+            error "No worktree found for branch: $branch_name"
+            exit 1
+        fi
+
+        if [[ "$worktree_path" == "$main_worktree" ]]; then
+            error "Cannot refresh main worktree (it is the source of env files)"
+            exit 1
+        fi
+
+        info "Refreshing env symlinks for worktree: $branch_name"
+        echo ""
+        if refresh_env_symlinks "$main_worktree" "$worktree_path"; then
+            echo ""
+            success "Env symlinks refreshed for $branch_name"
+        else
+            echo ""
+            error "Failed to refresh env symlinks for $branch_name"
+            exit 1
+        fi
+    else
+        # Refresh all worktrees - use git worktree list as authoritative source
+        info "Refreshing env symlinks for all worktrees"
+        echo ""
+
+        local refreshed_count=0
+        local failed_count=0
+        local current_path=""
+        local current_branch=""
+
+        # Parse git worktree list --porcelain to get all worktrees
+        local current_head=""
+        local is_detached=false
+
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^worktree\ (.+)$ ]]; then
+                current_path="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^branch\ refs/heads/(.+)$ ]]; then
+                current_branch="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^HEAD\ ([0-9a-f]+)$ ]]; then
+                current_head="${BASH_REMATCH[1]}"
+            elif [[ "$line" == "detached" ]]; then
+                is_detached=true
+            elif [[ -z "$line" ]] && [[ -n "$current_path" ]]; then
+                # Empty line marks end of worktree entry - process it
+                # Skip the main worktree (it's the source of truth)
+                if [[ "$current_path" != "$main_worktree" ]]; then
+                    # Build display name: branch or HEAD@commit for detached
+                    local display_name
+                    if [[ -n "$current_branch" ]]; then
+                        display_name="$current_branch"
+                    elif [[ "$is_detached" == true ]] && [[ -n "$current_head" ]]; then
+                        display_name="HEAD@${current_head:0:7}"
+                    else
+                        display_name="$(basename "$current_path")"
+                    fi
+
+                    info "Processing: $display_name"
+                    if refresh_env_symlinks "$main_worktree" "$current_path"; then
+                        ((refreshed_count++))
+                    else
+                        ((failed_count++))
+                    fi
+                    echo ""
+                fi
+
+                # Reset for next entry
+                current_path=""
+                current_branch=""
+                current_head=""
+                is_detached=false
+            fi
+        done < <(git worktree list --porcelain; echo "") # Add empty line to process last entry
+
+        if [[ $refreshed_count -eq 0 ]] && [[ $failed_count -eq 0 ]]; then
+            info "No worktrees found to refresh"
+        else
+            success "Refreshed env symlinks for $refreshed_count worktree(s)"
+            if [[ $failed_count -gt 0 ]]; then
+                warning "$failed_count worktree(s) failed to refresh"
+            fi
+        fi
+    fi
+}
+
 # Show current configuration
 cmd_config() {
     info "Git Worktree Configuration"
@@ -317,6 +446,7 @@ OPTIONS:
   --remove <branch>, -r    Remove a worktree
   --prune, -p              Remove stale worktree references
   --cleanup                Manually prune merged branch worktrees
+  --refresh-env [branch]   Refresh env file symlinks (all worktrees or specific branch)
   --enable-autoprune       Enable automatic pruning for this repo
   --disable-autoprune      Disable automatic pruning for this repo
   --config                 Show current configuration
@@ -343,6 +473,12 @@ EXAMPLES:
 
   # Manually cleanup merged branch worktrees
   git-wt --cleanup
+
+  # Refresh env symlinks in all worktrees
+  git-wt --refresh-env
+
+  # Refresh env symlinks in a specific worktree
+  git-wt --refresh-env feature/my-branch
 
   # Show current configuration
   git-wt --config
