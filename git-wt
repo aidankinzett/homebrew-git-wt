@@ -76,6 +76,10 @@ main() {
         --prune|-p|prune)
             cmd_prune
             ;;
+        --refresh-env)
+            shift
+            cmd_refresh_env "$@"
+            ;;
         --enable-autoprune)
             git config worktree.autoprune true
             success "Auto-pruning enabled for this repository"

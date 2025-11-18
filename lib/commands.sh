@@ -221,6 +221,82 @@ cmd_prune() {
     fi
 }
 
+# Refresh env file symlinks in worktrees
+cmd_refresh_env() {
+    check_git_repo || exit 1
+
+    local branch_name="$1"
+    local main_worktree
+    main_worktree=$(git worktree list --porcelain | awk '/^worktree/ {print $2; exit}')
+
+    if [[ -z "$main_worktree" ]]; then
+        error "Could not determine main worktree path"
+        exit 1
+    fi
+
+    # Get project name for path resolution
+    local project_name
+    project_name=$(get_project_name)
+
+    if [[ -n "$branch_name" ]]; then
+        # Refresh specific worktree
+        local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
+
+        if [[ ! -d "$worktree_path" ]]; then
+            error "Worktree does not exist: $worktree_path"
+            exit 1
+        fi
+
+        info "Refreshing env symlinks for worktree: $branch_name"
+        echo ""
+        refresh_env_symlinks "$main_worktree" "$worktree_path"
+        echo ""
+        success "Env symlinks refreshed for $branch_name"
+    else
+        # Refresh all worktrees for this project
+        local project_base="$WORKTREE_BASE/$project_name"
+
+        if [[ ! -d "$project_base" ]]; then
+            info "No worktrees found for project: $project_name"
+            return
+        fi
+
+        info "Refreshing env symlinks for all worktrees in project: $project_name"
+        echo ""
+
+        local refreshed_count=0
+        local failed_count=0
+
+        # Iterate through all worktree directories
+        while IFS= read -r worktree_dir; do
+            if [[ -d "$worktree_dir/.git" ]] || [[ -f "$worktree_dir/.git" ]]; then
+                local worktree_name
+                worktree_name=$(basename "$worktree_dir")
+
+                # Skip the main worktree (it's the source of truth)
+                if [[ "$worktree_dir" == "$main_worktree" ]]; then
+                    continue
+                fi
+
+                info "Processing: $worktree_name"
+                if refresh_env_symlinks "$main_worktree" "$worktree_dir"; then
+                    ((refreshed_count++))
+                else
+                    ((failed_count++))
+                fi
+                echo ""
+            fi
+        done < <(find "$project_base" -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+
+        if [[ $refreshed_count -eq 0 ]] && [[ $failed_count -eq 0 ]]; then
+            info "No worktrees found to refresh"
+        else
+            success "Refreshed env symlinks for $refreshed_count worktree(s)"
+            [[ $failed_count -gt 0 ]] && warning "$failed_count worktree(s) failed to refresh"
+        fi
+    fi
+}
+
 # Show current configuration
 cmd_config() {
     info "Git Worktree Configuration"
@@ -317,6 +393,7 @@ OPTIONS:
   --remove <branch>, -r    Remove a worktree
   --prune, -p              Remove stale worktree references
   --cleanup                Manually prune merged branch worktrees
+  --refresh-env [branch]   Refresh env file symlinks (all worktrees or specific branch)
   --enable-autoprune       Enable automatic pruning for this repo
   --disable-autoprune      Disable automatic pruning for this repo
   --config                 Show current configuration
@@ -343,6 +420,12 @@ EXAMPLES:
 
   # Manually cleanup merged branch worktrees
   git-wt --cleanup
+
+  # Refresh env symlinks in all worktrees
+  git-wt --refresh-env
+
+  # Refresh env symlinks in a specific worktree
+  git-wt --refresh-env feature/my-branch
 
   # Show current configuration
   git-wt --config
