@@ -149,3 +149,70 @@ teardown() {
     [[ "$output" == *"(not set)"* ]]
 }
 
+@test "cmd_config can set global configuration" {
+    local test_path="/tmp/test-global-path"
+    
+    run cmd_config "$test_path"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Configuration set successfully"* ]]
+    [[ "$output" == *"(global)"* ]]
+    
+    # Verify it was actually set
+    local result
+    result=$(git config --global --get worktree.basepath)
+    [ "$result" = "$test_path" ]
+}
+
+@test "cmd_config can set local configuration" {
+    local test_path="/tmp/test-local-path"
+    
+    run cmd_config --local "$test_path"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Configuration set successfully"* ]]
+    [[ "$output" == *"(local)"* ]]
+    
+    # Verify it was actually set
+    local result
+    result=$(git config --local --get worktree.basepath)
+    [ "$result" = "$test_path" ]
+}
+
+@test "cmd_config expands tilde when setting" {
+    run cmd_config "~/custom/worktrees"
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Configuration set successfully"* ]]
+    
+    # Verify tilde was expanded
+    local result
+    result=$(git config --global --get worktree.basepath)
+    [[ "$result" == "$HOME/custom/worktrees" ]]
+    [[ "$result" != *"~"* ]]
+}
+
+@test "cmd_config rejects relative paths when setting" {
+    run cmd_config "relative/path"
+    
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Invalid path"* ]]
+    [[ "$output" == *"absolute path"* ]]
+}
+
+@test "cmd_config requires git repo for local config" {
+    local test_path="/tmp/test-local-path"
+    local non_repo_dir="/tmp/not-a-repo-$$"
+    mkdir -p "$non_repo_dir"
+    
+    (
+        cd "$non_repo_dir"
+        run cmd_config --local "$test_path"
+        
+        [ "$status" -eq 1 ]
+        [[ "$output" == *"Must be in a git repository"* ]]
+    )
+    
+    rm -rf "$non_repo_dir"
+}
+

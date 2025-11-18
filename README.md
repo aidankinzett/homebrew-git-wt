@@ -120,13 +120,20 @@ When enabled, git-wt automatically removes worktrees for branches that have been
 
 ### Custom Worktree Path
 
-You can customize where worktrees are stored using git config or environment variables:
+You can customize where worktrees are stored:
 
 ```bash
-# Set globally for all repositories
-git config --global worktree.basepath ~/custom/path
+# View current configuration
+git-wt --config
+
+# Set globally for all repositories (recommended)
+git-wt --config ~/custom/path
 
 # Set for current repository only
+git-wt --config --local ~/custom/path
+
+# Or use git commands directly
+git config --global worktree.basepath ~/custom/path
 git config --local worktree.basepath ~/custom/path
 
 # Or use environment variable
@@ -162,7 +169,7 @@ If you have existing worktrees you want to keep using:
 git worktree list
 
 # Set your config to match that location
-git config --global worktree.basepath /path/to/existing/worktrees
+git-wt --config /path/to/existing/worktrees
 ```
 
 **Note:** git-wt will warn you if it detects existing worktrees in different locations when you run `git-wt --list` or `git-wt`.

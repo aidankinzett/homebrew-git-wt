@@ -91,7 +91,8 @@ main() {
             auto_prune_stale_worktrees
             ;;
         --config)
-            cmd_config
+            shift
+            cmd_config "$@"
             ;;
         --help|-h|help)
             cmd_help

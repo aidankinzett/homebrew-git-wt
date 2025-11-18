@@ -221,8 +221,60 @@ cmd_prune() {
     fi
 }
 
-# Show current configuration
+# Show or set configuration
 cmd_config() {
+    local scope="global"
+    local path=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --local)
+                scope="local"
+                shift
+                ;;
+            --global)
+                scope="global"
+                shift
+                ;;
+            *)
+                path="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # If path is provided, set the configuration
+    if [[ -n "$path" ]]; then
+        # Validate the path
+        local validated_path
+        if ! validated_path=$(validate_worktree_path "$path" "command line argument"); then
+            error "Invalid path: $path"
+            exit 1
+        fi
+        
+        # Require being in a git repo for local config
+        if [[ "$scope" == "local" ]]; then
+            if ! git rev-parse --git-dir &>/dev/null; then
+                error "Must be in a git repository to set local configuration"
+                exit 1
+            fi
+        fi
+        
+        # Set the configuration
+        if git config "--$scope" worktree.basepath "$validated_path"; then
+            success "Configuration set successfully"
+            info "Worktree base path ($scope): $validated_path"
+            echo ""
+            info "This will take effect the next time you run git-wt"
+        else
+            error "Failed to set configuration"
+            exit 1
+        fi
+        return
+    fi
+    
+    # No path provided - show current configuration
     info "Git Worktree Configuration"
     echo ""
 
@@ -286,9 +338,13 @@ cmd_config() {
 
     echo ""
     info "To change configuration:"
-    echo "  git config --global worktree.basepath <path>  # Set globally"
-    echo "  git config --local worktree.basepath <path>   # Set for this repo"
-    echo "  export GIT_WT_BASE=<path>                     # Set via environment"
+    echo "  git-wt --config <path>                  # Set globally"
+    echo "  git-wt --config --local <path>          # Set for this repo"
+    echo "  export GIT_WT_BASE=<path>               # Set via environment"
+    echo ""
+    echo "  Or use git commands directly:"
+    echo "  git config --global worktree.basepath <path>"
+    echo "  git config --local worktree.basepath <path>"
 }
 
 # Show help
@@ -313,14 +369,17 @@ MODES:
                         - Opens in Cursor (if available)
 
 OPTIONS:
-  --list, -l               Show all worktrees for the current project
-  --remove <branch>, -r    Remove a worktree
-  --prune, -p              Remove stale worktree references
-  --cleanup                Manually prune merged branch worktrees
-  --enable-autoprune       Enable automatic pruning for this repo
-  --disable-autoprune      Disable automatic pruning for this repo
-  --config                 Show current configuration
-  --help, -h               Show this help message
+  --list, -l                  Show all worktrees for the current project
+  --remove <branch>, -r       Remove a worktree
+  --prune, -p                 Remove stale worktree references
+  --cleanup                   Manually prune merged branch worktrees
+  --enable-autoprune          Enable automatic pruning for this repo
+  --disable-autoprune         Disable automatic pruning for this repo
+  --config [--local] [<path>] Show or set worktree location configuration
+                              - No args: show current configuration
+                              - With path: set global configuration
+                              - --local flag: set local configuration
+  --help, -h                  Show this help message
 
 EXAMPLES:
   # Launch interactive fuzzy finder
@@ -347,6 +406,12 @@ EXAMPLES:
   # Show current configuration
   git-wt --config
 
+  # Set global worktree location
+  git-wt --config ~/my-worktrees
+
+  # Set local worktree location (for current repo only)
+  git-wt --config --local ~/my-worktrees
+
 AUTO-PRUNING:
   When enabled, git-wt automatically removes worktrees for branches that have been
   merged into main/master. This happens in the background when running git-wt.
@@ -363,14 +428,16 @@ LOCATION:
 CONFIGURATION:
   You can customize the worktree storage location:
 
-  # Set globally for all repositories
-  git config --global worktree.basepath ~/custom/path
+  Using git-wt directly (recommended):
+    git-wt --config <path>              # Set globally for all repositories
+    git-wt --config --local <path>      # Set for current repository only
 
-  # Set for current repository only
-  git config --local worktree.basepath ~/custom/path
+  Or use git commands:
+    git config --global worktree.basepath <path>
+    git config --local worktree.basepath <path>
 
-  # Or use environment variable
-  export GIT_WT_BASE=~/custom/path
+  Or use environment variable:
+    export GIT_WT_BASE=<path>
 
   Priority: local git config > global git config > environment variable > default
 
