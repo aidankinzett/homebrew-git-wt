@@ -29,7 +29,38 @@ detect_package_manager() {
     fi
 }
 
-# Symlink env files
+# Resolve a path to its absolute form
+# Tries realpath first (GNU), then readlink (BSD), then returns as-is
+# Args:
+#   $1 - path to resolve
+# Returns:
+#   Absolute path on success, original path on failure
+resolve_absolute_path() {
+    local path="$1"
+
+    if command -v realpath &> /dev/null; then
+        realpath "$path" 2>/dev/null || echo "$path"
+    elif command -v readlink &> /dev/null; then
+        readlink -f "$path" 2>/dev/null || echo "$path"
+    else
+        echo "$path"
+    fi
+}
+
+# Symlink environment files from source to target directory
+#
+# Creates symlinks for all .env and .env.* files found in the source directory.
+# Skips files that already exist in the target directory.
+#
+# Args:
+#   $1 - source_dir: Directory containing .env files to symlink from (typically main worktree)
+#   $2 - target_dir: Directory to create symlinks in (typically a worktree)
+#
+# Returns:
+#   0 on success, non-zero on failure
+#
+# Examples:
+#   symlink_env_files "$main_worktree" "$new_worktree"
 symlink_env_files() {
     local source_dir="$1"
     local target_dir="$2"
@@ -49,16 +80,8 @@ symlink_env_files() {
             filename=$(basename "$env_file")
             local target="$target_dir/$filename"
 
-            # Resolve to absolute path to avoid broken relative symlinks
             local abs_env_file
-            if command -v realpath &> /dev/null; then
-                abs_env_file=$(realpath "$env_file" 2>/dev/null)
-            elif command -v readlink &> /dev/null; then
-                abs_env_file=$(readlink -f "$env_file" 2>/dev/null)
-            else
-                # Fallback: assume find already returned absolute paths from source_dir
-                abs_env_file="$env_file"
-            fi
+            abs_env_file=$(resolve_absolute_path "$env_file")
 
             if [[ ! -f "$abs_env_file" ]]; then
                 warning "Could not resolve absolute path for $filename, skipping"
@@ -78,104 +101,143 @@ symlink_env_files() {
     done <<< "$env_files"
 }
 
-# Refresh env file symlinks in an existing worktree
-# This removes old/stale env symlinks and creates new ones based on current base repo
+# Refresh environment file symlinks in an existing worktree
+#
+# Updates symlinks in a worktree to match the current .env files in the main worktree.
+# This is useful when .env files are renamed, added, or removed in the main worktree.
+#
+# Process:
+#   1. Validates target directory exists
+#   2. Removes all existing .env* symlinks from target
+#   3. Creates new symlinks for all .env* files found in source
+#   4. Validates symlink targets are within source directory (security)
+#   5. Preserves regular files (non-symlinks) in target directory
+#
+# Args:
+#   $1 - source_dir: Directory containing .env files (typically main worktree)
+#   $2 - target_dir: Worktree directory to update symlinks in
+#
+# Returns:
+#   0 on success, 1 on failure
+#
+# Examples:
+#   # Refresh after renaming .env to .env.local
+#   refresh_env_symlinks "$main_worktree" "$feature_worktree"
+#
+# Security:
+#   - Only creates symlinks to files within source_dir
+#   - Preserves regular files (won't overwrite user's custom .env files)
 refresh_env_symlinks() {
     local source_dir="$1"
     local target_dir="$2"
 
+    # Validate target directory exists
     if [[ ! -d "$target_dir" ]]; then
         error "Target directory does not exist: $target_dir"
         return 1
     fi
 
-    # Find and remove existing env symlinks in the target directory
-    local removed_count=0
+    # Resolve source directory to absolute path once
+    local abs_source_dir
+    abs_source_dir=$(resolve_absolute_path "$source_dir")
+
+    # Track old symlinks for informative messages
+    local old_symlinks=()
     while IFS= read -r symlink; do
         if [[ -n "$symlink" && -L "$symlink" ]]; then
-            local filename
-            filename=$(basename "$symlink")
-            if rm "$symlink" 2>/dev/null; then
-                info "Removed old symlink: $filename"
-                ((removed_count++))
-            else
-                warning "Failed to remove symlink: $filename"
-            fi
+            old_symlinks+=("$(basename "$symlink")")
         fi
     done < <(find "$target_dir" -maxdepth 1 -type l \( -name ".env" -o -name ".env.*" \) 2>/dev/null)
 
+    # Remove existing env symlinks in the target directory
+    local removed_count=0
+    for symlink_name in "${old_symlinks[@]}"; do
+        local symlink_path="$target_dir/$symlink_name"
+        if rm "$symlink_path" 2>/dev/null; then
+            info "  Removed: $symlink_name"
+            ((removed_count++))
+        else
+            warning "  Failed to remove: $symlink_name"
+        fi
+    done
+
     if [[ $removed_count -eq 0 ]]; then
-        info "No existing env symlinks found to remove"
+        info "No existing env symlinks to remove"
+    else
+        info "Removed $removed_count old symlink(s)"
     fi
 
-    # Create new symlinks from source
+    # Find new env files in source
     local env_files
     env_files=$(find "$source_dir" -maxdepth 1 -type f \( -name ".env" -o -name ".env.*" \) 2>/dev/null)
 
     if [[ -z "$env_files" ]]; then
-        info "No .env files found in base repo to symlink"
+        info "No .env files found in source to symlink"
         return 0
     fi
 
-    info "Creating new env symlinks..."
+    # Create new symlinks from source
+    info "Creating new symlinks..."
     local created_count=0
+    local new_files=()
+
     while IFS= read -r env_file; do
         if [[ -n "$env_file" ]]; then
             local filename
             filename=$(basename "$env_file")
             local target="$target_dir/$filename"
 
-            # Resolve to absolute path to avoid broken relative symlinks
+            # Resolve to absolute path
             local abs_env_file
-            if command -v realpath &> /dev/null; then
-                abs_env_file=$(realpath "$env_file" 2>/dev/null)
-            elif command -v readlink &> /dev/null; then
-                abs_env_file=$(readlink -f "$env_file" 2>/dev/null)
-            else
-                abs_env_file="$env_file"
-            fi
+            abs_env_file=$(resolve_absolute_path "$env_file")
 
             if [[ ! -f "$abs_env_file" ]]; then
-                warning "Could not resolve absolute path for $filename, skipping"
+                warning "  Could not resolve: $filename"
                 continue
             fi
 
             # Security: Validate symlink target is within source directory
-            local abs_source_dir
-            if command -v realpath &> /dev/null; then
-                abs_source_dir=$(realpath "$source_dir" 2>/dev/null)
-            elif command -v readlink &> /dev/null; then
-                abs_source_dir=$(readlink -f "$source_dir" 2>/dev/null)
-            else
-                abs_source_dir="$source_dir"
-            fi
-
-            # Check that abs_env_file is within abs_source_dir
             if [[ "$abs_env_file" != "$abs_source_dir"/* ]] && [[ "$abs_env_file" != "$abs_source_dir" ]]; then
-                warning "Skipping $filename (symlink target outside source directory)"
+                warning "  Skipped: $filename (outside source directory)"
                 continue
             fi
 
             # Check if a regular file (not symlink) exists - don't overwrite
             if [[ -f "$target" && ! -L "$target" ]]; then
-                warning "Skipping $filename (regular file exists, not a symlink)"
+                warning "  Skipped: $filename (regular file exists)"
             else
-                # Remove if it exists (broken symlink or regular symlink)
+                # Remove if it exists (broken symlink)
                 [[ -e "$target" || -L "$target" ]] && rm "$target" 2>/dev/null
 
                 if ln -s "$abs_env_file" "$target" 2>/dev/null; then
-                    success "  Linked $filename"
+                    new_files+=("$filename")
                     ((created_count++))
                 else
-                    warning "Failed to create symlink for $filename"
+                    warning "  Failed to link: $filename"
                 fi
             fi
         fi
     done <<< "$env_files"
 
+    # Show informative summary of changes
     if [[ $created_count -eq 0 ]]; then
-        warning "No new env symlinks were created"
+        warning "No new symlinks created"
+        return 0
+    fi
+
+    # Display what changed
+    for new_file in "${new_files[@]}"; do
+        success "  Linked: $new_file"
+    done
+
+    # Show helpful summary if files were renamed
+    if [[ $removed_count -gt 0 ]] && [[ $created_count -gt 0 ]]; then
+        if [[ $removed_count -eq 1 ]] && [[ $created_count -eq 1 ]]; then
+            info "Updated: ${old_symlinks[0]} → ${new_files[0]}"
+        else
+            info "Updated: $removed_count removed, $created_count created"
+        fi
     else
-        success "Created $created_count env symlink(s)"
+        success "Created $created_count new symlink(s)"
     fi
 }
