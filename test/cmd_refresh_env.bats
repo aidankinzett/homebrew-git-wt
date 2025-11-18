@@ -2,6 +2,8 @@
 
 # Tests for cmd_refresh_env command
 
+bats_require_minimum_version 1.5.0
+
 load test_helper
 
 setup() {
@@ -137,5 +139,5 @@ teardown() {
     [ -L "$PROJECT_DIR/test-branch/.env.local" ]
 
     # Verify no .tmp files left behind
-    ! ls "$PROJECT_DIR/test-branch"/.env*.tmp.* 2>/dev/null
+    run ! ls "$PROJECT_DIR/test-branch"/.env*.tmp.* 2>/dev/null
 }
