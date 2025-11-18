@@ -247,4 +247,6 @@ refresh_env_symlinks() {
     else
         success "Created $created_count new symlink(s)"
     fi
+
+    return 0
 }

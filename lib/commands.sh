@@ -343,7 +343,9 @@ cmd_refresh_env() {
             info "No worktrees found to refresh"
         else
             success "Refreshed env symlinks for $refreshed_count worktree(s)"
-            [[ $failed_count -gt 0 ]] && warning "$failed_count worktree(s) failed to refresh"
+            if [[ $failed_count -gt 0 ]]; then
+                warning "$failed_count worktree(s) failed to refresh"
+            fi
         fi
     fi
 }
