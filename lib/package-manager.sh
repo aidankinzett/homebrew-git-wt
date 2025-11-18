@@ -144,7 +144,7 @@ refresh_env_symlinks() {
     # Track old symlinks for informative messages
     local old_symlinks=()
     while IFS= read -r symlink; do
-        if [[ -n "$symlink" && -L "$symlink" ]]; then
+        if [[ -n "$symlink" ]]; then
             old_symlinks+=("$(basename "$symlink")")
         fi
     done < <(find "$target_dir" -maxdepth 1 -type l \( -name ".env" -o -name ".env.*" \) 2>/dev/null)
@@ -206,14 +206,21 @@ refresh_env_symlinks() {
             if [[ -f "$target" && ! -L "$target" ]]; then
                 warning "  Skipped: $filename (regular file exists)"
             else
-                # Remove if it exists (broken symlink)
-                [[ -e "$target" || -L "$target" ]] && rm "$target" 2>/dev/null
+                # Atomic symlink update: create temp symlink then rename
+                # This avoids race condition window between rm and ln
+                local temp_target="$target.tmp.$$"
 
-                if ln -s "$abs_env_file" "$target" 2>/dev/null; then
-                    new_files+=("$filename")
-                    ((created_count++))
+                if ln -s "$abs_env_file" "$temp_target" 2>/dev/null; then
+                    # Atomically replace old symlink with new one
+                    if mv -f "$temp_target" "$target" 2>/dev/null; then
+                        new_files+=("$filename")
+                        ((created_count++))
+                    else
+                        warning "  Failed to update: $filename"
+                        rm -f "$temp_target" 2>/dev/null
+                    fi
                 else
-                    warning "  Failed to link: $filename"
+                    warning "  Failed to create symlink: $filename"
                 fi
             fi
         fi

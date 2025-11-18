@@ -225,6 +225,14 @@ cmd_prune() {
 cmd_refresh_env() {
     check_git_repo || exit 1
 
+    # Validate argument count
+    if [[ $# -gt 1 ]]; then
+        error "Too many arguments. Usage: git-wt --refresh-env [branch-name]"
+        echo "  git-wt --refresh-env              # Refresh all worktrees"
+        echo "  git-wt --refresh-env <branch>     # Refresh specific branch"
+        exit 1
+    fi
+
     local branch_name="$1"
     local main_worktree
     main_worktree=$(git worktree list --porcelain | awk '/^worktree/ {print $2; exit}')
@@ -288,16 +296,32 @@ cmd_refresh_env() {
         local current_branch=""
 
         # Parse git worktree list --porcelain to get all worktrees
+        local current_head=""
+        local is_detached=false
+
         while IFS= read -r line; do
             if [[ "$line" =~ ^worktree\ (.+)$ ]]; then
                 current_path="${BASH_REMATCH[1]}"
             elif [[ "$line" =~ ^branch\ refs/heads/(.+)$ ]]; then
                 current_branch="${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ ^HEAD\ ([0-9a-f]+)$ ]]; then
+                current_head="${BASH_REMATCH[1]}"
+            elif [[ "$line" == "detached" ]]; then
+                is_detached=true
             elif [[ -z "$line" ]] && [[ -n "$current_path" ]]; then
                 # Empty line marks end of worktree entry - process it
                 # Skip the main worktree (it's the source of truth)
                 if [[ "$current_path" != "$main_worktree" ]]; then
-                    local display_name="${current_branch:-$(basename "$current_path")}"
+                    # Build display name: branch or HEAD@commit for detached
+                    local display_name
+                    if [[ -n "$current_branch" ]]; then
+                        display_name="$current_branch"
+                    elif [[ "$is_detached" == true ]] && [[ -n "$current_head" ]]; then
+                        display_name="HEAD@${current_head:0:7}"
+                    else
+                        display_name="$(basename "$current_path")"
+                    fi
+
                     info "Processing: $display_name"
                     if refresh_env_symlinks "$main_worktree" "$current_path"; then
                         ((refreshed_count++))
@@ -310,6 +334,8 @@ cmd_refresh_env() {
                 # Reset for next entry
                 current_path=""
                 current_branch=""
+                current_head=""
+                is_detached=false
             fi
         done < <(git worktree list --porcelain; echo "") # Add empty line to process last entry
 
