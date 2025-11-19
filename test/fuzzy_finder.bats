@@ -23,6 +23,7 @@ setup() {
     source "$BATS_TEST_DIRNAME/../lib/git-utils.sh"
     source "$BATS_TEST_DIRNAME/../lib/package-manager.sh"
     source "$BATS_TEST_DIRNAME/../lib/worktree-ops.sh"
+    source "$BATS_TEST_DIRNAME/../lib/ui.sh"
     source "$BATS_TEST_DIRNAME/../lib/fuzzy-finder.sh"
     source "$BATS_TEST_DIRNAME/../lib/commands.sh"
 
@@ -38,156 +39,111 @@ teardown() {
     teardown_test_git_repo
 }
 
-@test "delete_worktree_interactive deletes clean worktree successfully" {
+@test "delete_worktree_with_check deletes clean worktree" {
     # Create a worktree
-    local branch="feature/test"
+    local branch="feature/delete-clean"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-
     mkdir -p "$(dirname "$worktree_path")"
     git worktree add "$worktree_path" -b "$branch"
-
-    # Verify worktree exists
     [ -d "$worktree_path" ]
 
-    # Delete worktree (simulate fzf line with branch name)
-    run delete_worktree_interactive "  feature/test"
+    # Mock UI functions to avoid interactive prompts in tests
+    # shellcheck disable=SC2317
+    show_loading() { echo "mock loading: $1"; }
+    # shellcheck disable=SC2317
+    hide_loading() { echo "mock hide loading: $1"; }
+
+    run delete_worktree_with_check "feature/delete-clean"
 
     [ "$status" -eq 0 ]
+    [[ "$output" == *"mock loading: Deleting worktree"* ]]
+    [[ "$output" == *"mock hide loading"* ]]
     [ ! -d "$worktree_path" ]
 }
 
-@test "delete_worktree_interactive handles worktree with ANSI codes" {
-    # Create a worktree
-    local branch="feature/ansi"
-    local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-
-    mkdir -p "$(dirname "$worktree_path")"
-    git worktree add "$worktree_path" -b "$branch"
-
-    # Verify worktree exists
-    [ -d "$worktree_path" ]
-
-    # Delete worktree with ANSI codes (like fzf would provide)
-    local ansi_line=$'\033[0;32m✓\033[0m feature/ansi'
-    run delete_worktree_interactive "$ansi_line"
-
-    [ "$status" -eq 0 ]
-    [ ! -d "$worktree_path" ]
-}
-
-@test "delete_worktree_interactive fails when worktree doesn't exist" {
-    # Try to delete non-existent worktree
-    run delete_worktree_interactive "nonexistent-branch"
+@test "delete_worktree_with_check handles non-existent worktree" {
+    run delete_worktree_with_check "feature/non-existent"
 
     [ "$status" -eq 1 ]
-    [[ "$output" == *"does not exist"* ]]
+    [[ "$output" == *"Worktree for 'feature/non-existent' does not exist."* ]]
 }
 
-@test "delete_worktree_interactive cleans up empty parent directories" {
-    # Create a worktree
-    local branch="feature/cleanup"
+@test "delete_worktree_with_check prompts to force delete a dirty worktree" {
+    # Create a dirty worktree
+    local branch="feature/delete-dirty"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-    local parent_dir
-    parent_dir="$(dirname "$worktree_path")"
-
-    mkdir -p "$parent_dir"
-    git worktree add "$worktree_path" -b "$branch"
-
-    # Verify parent exists
-    [ -d "$parent_dir" ]
-
-    # Delete worktree
-    run delete_worktree_interactive "feature/cleanup"
-
-    [ "$status" -eq 0 ]
-    # Parent should be removed (it's empty after deletion)
-    [ ! -d "$parent_dir" ]
-}
-
-@test "delete_worktree_interactive prompts for confirmation with uncommitted changes" {
-    # Create a worktree
-    local branch="feature/dirty"
-    local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-
     mkdir -p "$(dirname "$worktree_path")"
     git worktree add "$worktree_path" -b "$branch"
+    echo "dirty" > "$worktree_path/dirty.txt"
 
-    # Add uncommitted changes
-    echo "dirty content" > "$worktree_path/dirty.txt"
+    # Mock UI functions
+    # shellcheck disable=SC2317
+    ask_yes_no() { return 0; }
+    # shellcheck disable=SC2317
+    show_loading() { :; }
+    # shellcheck disable=SC2317
+    hide_loading() { :; }
 
-    # Try to delete (simulate 'N' response)
-    run delete_worktree_interactive 'feature/dirty' <<< 'N'
-
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"uncommitted changes"* ]]
-    [[ "$output" == *"Deletion cancelled"* ]]
-    [ -d "$worktree_path" ]
-}
-
-@test "delete_worktree_interactive deletes dirty worktree with confirmation" {
-    # Create a worktree
-    local branch="feature/force-delete"
-    local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-
-    mkdir -p "$(dirname "$worktree_path")"
-    git worktree add "$worktree_path" -b "$branch"
-
-    # Add uncommitted changes
-    echo "dirty content" > "$worktree_path/dirty.txt"
-
-    # Delete with 'y' response
-    run delete_worktree_interactive 'feature/force-delete' <<< 'y'
+    run delete_worktree_with_check "feature/delete-dirty"
 
     [ "$status" -eq 0 ]
+    [[ "$output" == *"Failed to delete worktree"* ]]
+    [[ "$output" == *"Worktree force-deleted successfully."* ]]
     [ ! -d "$worktree_path" ]
 }
 
-@test "recreate_worktree recreates worktree with uncommitted changes after confirmation" {
+@test "recreate_worktree recreates a clean worktree" {
     # Create a worktree
-    local branch="feature/recreate"
+    local branch="feature/recreate-clean"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-
     mkdir -p "$(dirname "$worktree_path")"
     git worktree add "$worktree_path" -b "$branch"
+    [ -d "$worktree_path" ]
 
-    # Add an uncommitted marker file
-    echo "original" > "$worktree_path/marker.txt"
+    # Mock UI and cmd_add
+    # shellcheck disable=SC2317
+    show_loading() { :; }
+    # shellcheck disable=SC2317
+    hide_loading() { :; }
+    # shellcheck disable=SC2317
+    cmd_add() { echo "mock cmd_add called for $1"; }
 
-    # Recreate worktree (provide 'y' to confirm deletion of uncommitted changes)
-    run recreate_worktree "feature/recreate" <<< 'y'
+    run recreate_worktree "feature/recreate-clean"
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Deleted old worktree"* ]]
-    [[ "$output" == *"Creating fresh worktree"* ]]
-    [ -d "$worktree_path" ]
-    # Marker file should not exist (it was uncommitted and got deleted)
-    [ ! -f "$worktree_path/marker.txt" ]
+    [[ "$output" == *"Old worktree removed."* ]]
+    [[ "$output" == *"mock cmd_add called for feature/recreate-clean"* ]]
+}
+
+@test "recreate_worktree prompts to force recreate a dirty worktree" {
+    # Create a dirty worktree
+    local branch="feature/recreate-dirty"
+    local worktree_path="$WORKTREE_BASE/test-repo/$branch"
+    mkdir -p "$(dirname "$worktree_path")"
+    git worktree add "$worktree_path" -b "$branch"
+    echo "dirty" > "$worktree_path/dirty.txt"
+
+    # Mock UI and cmd_add
+    # shellcheck disable=SC2317
+    ask_yes_no() { return 0; }
+    # shellcheck disable=SC2317
+    show_loading() { :; }
+    # shellcheck disable=SC2317
+    hide_loading() { :; }
+    # shellcheck disable=SC2317
+    cmd_add() { echo "mock cmd_add called for $1"; }
+
+    run recreate_worktree "feature/recreate-dirty"
+
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Failed to delete worktree"* ]]
+    [[ "$output" == *"Old worktree removed."* ]]
+    [[ "$output" == *"mock cmd_add called for feature/recreate-dirty"* ]]
 }
 
 @test "recreate_worktree fails when worktree doesn't exist" {
-    # Try to recreate non-existent worktree
     run recreate_worktree "nonexistent-branch"
 
     [ "$status" -eq 1 ]
-    [[ "$output" == *"does not exist"* ]]
-}
-
-@test "recreate_worktree prompts for confirmation with uncommitted changes" {
-    # Create a worktree
-    local branch="feature/recreate-dirty"
-    local worktree_path="$WORKTREE_BASE/test-repo/$branch"
-
-    mkdir -p "$(dirname "$worktree_path")"
-    git worktree add "$worktree_path" -b "$branch"
-
-    # Add uncommitted changes
-    echo "dirty content" > "$worktree_path/dirty.txt"
-
-    # Try to recreate (simulate 'N' response)
-    run recreate_worktree 'feature/recreate-dirty' <<< 'N'
-
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"uncommitted changes"* ]]
-    [[ "$output" == *"Recreate cancelled"* ]]
-    [ -d "$worktree_path" ]
+    [[ "$output" == *"Worktree for 'nonexistent-branch' does not exist."* ]]
 }

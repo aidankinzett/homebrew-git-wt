@@ -243,68 +243,9 @@ open_or_create_worktree() {
     fi
 }
 
-# Delete worktree with silent operation and optional confirmation
-# This version shows confirmation prompts but deletes silently
+# Delete a worktree with interactive prompts and loading animations
 delete_worktree_with_check() {
     local line="$1"
-
-    # Strip ANSI color codes and extract branch name
-    local branch
-    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
-
-    if [[ -z "$branch" ]]; then
-        return 1
-    fi
-
-    local worktree_path
-    worktree_path=$(get_worktree_path "$branch")
-
-    # Check if worktree exists
-    if [[ ! -d "$worktree_path" ]]; then
-        return 1
-    fi
-
-    # Check for uncommitted changes
-    local status
-    if ! status=$(cd "$worktree_path" 2>/dev/null && git status --porcelain 2>/dev/null); then
-        return 1
-    fi
-
-    # If there are uncommitted changes, ask for confirmation
-    if [[ -n "$status" ]]; then
-        echo ""
-        warning "Worktree has uncommitted changes:"
-        echo "$status" | head -5
-        if [[ $(echo "$status" | wc -l) -gt 5 ]]; then
-            echo "... and more"
-        fi
-        echo ""
-        echo -n "Delete anyway? [y/N] "
-        read -r response
-        if [[ ! "$response" =~ ^[Yy]$ ]]; then
-            return 1
-        fi
-    fi
-
-    # Delete worktree silently
-    if git worktree remove --force "$worktree_path" 2>/dev/null; then
-        # Clean up empty parent directories
-        local parent_dir
-        parent_dir="$(dirname "$worktree_path")"
-        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
-            rmdir "$parent_dir" 2>/dev/null
-        fi
-        return 0
-    else
-        return 1
-    fi
-}
-
-# Delete worktree (called from fuzzy finder)
-delete_worktree_interactive() {
-    local line="$1"
-
-    # Strip ANSI color codes and extract branch name
     local branch
     branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
 
@@ -316,101 +257,41 @@ delete_worktree_interactive() {
     local worktree_path
     worktree_path=$(get_worktree_path "$branch")
 
-    # Check if worktree exists
     if [[ ! -d "$worktree_path" ]]; then
-        error "Worktree does not exist for branch '$branch'" >&2
+        error "Worktree for '$branch' does not exist." >&2
         return 1
     fi
 
-    # Check for uncommitted changes
-    local status
-    if ! status=$(cd "$worktree_path" 2>/dev/null && git status --porcelain 2>/dev/null); then
-        return 1
-    fi
+    # Start loading animation
+    show_loading "Deleting worktree for '$branch'..." >&2 &
+    local loader_pid=$!
 
-    if [[ -n "$status" ]]; then
-        # Has uncommitted changes - show warning and ask for confirmation
-        echo "" >&2
-        warning "Worktree has uncommitted changes:" >&2
-        echo "$status" | head -5 >&2
-        if [[ $(echo "$status" | wc -l) -gt 5 ]]; then
-            echo "... and more" >&2
-        fi
-        echo "" >&2
-        echo -n "Delete anyway? [y/N] " >&2
-        read -r response
-        if [[ ! "$response" =~ ^[Yy]$ ]]; then
-            info "Deletion cancelled" >&2
+    # Attempt to remove worktree, capture error if it fails
+    local error_msg
+    if ! error_msg=$(git worktree remove "$worktree_path" 2>&1); then
+        hide_loading "$loader_pid"
+
+        # Show the error and ask to force
+        error "Failed to delete worktree:" >&2
+        echo "$error_msg" >&2
+        if ask_yes_no "Force delete?"; then
+            show_loading "Force deleting worktree..." >&2 &
+            loader_pid=$!
+            if git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
+                hide_loading "$loader_pid"
+                success "Worktree force-deleted successfully." >&2
+            else
+                hide_loading "$loader_pid"
+                error "Failed to force-delete worktree." >&2
+                return 1
+            fi
+        else
+            info "Deletion cancelled." >&2
             return 1
-        fi
-    fi
-
-    # Delete worktree
-    if git worktree remove --force "$worktree_path" 2>/dev/null; then
-        # Clean up empty parent directories
-        local parent_dir
-        parent_dir="$(dirname "$worktree_path")"
-        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
-            rmdir "$parent_dir" 2>/dev/null
         fi
     else
-        error "Failed to delete worktree" >&2
-        return 1
-    fi
-}
-
-# Recreate worktree (delete + create fresh)
-recreate_worktree() {
-    local line="$1"
-
-    # Strip ANSI color codes and extract branch name
-    local branch
-    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
-
-    if [[ -z "$branch" ]]; then
-        error "No branch selected" >&2
-        return 1
-    fi
-
-    local worktree_path
-    worktree_path=$(get_worktree_path "$branch")
-
-    # Check if worktree exists
-    if [[ ! -d "$worktree_path" ]]; then
-        error "Worktree does not exist for branch '$branch'" >&2
-        return 1
-    fi
-
-    # Delete first
-    info "Recreating worktree for branch '$branch'..." >&2
-
-    # Check for uncommitted changes
-    local status
-    if ! status=$(cd "$worktree_path" 2>/dev/null && git status --porcelain 2>/dev/null); then
-        return 1
-    fi
-
-    if [[ -n "$status" ]]; then
-        # Has uncommitted changes - show warning and ask for confirmation
-        echo "" >&2
-        warning "Worktree has uncommitted changes:" >&2
-        echo "$status" | head -5 >&2
-        if [[ $(echo "$status" | wc -l) -gt 5 ]]; then
-            echo "... and more" >&2
-        fi
-        echo "" >&2
-        echo -n "Recreate anyway? This will DELETE all uncommitted changes. [y/N] " >&2
-        read -r response
-        if [[ ! "$response" =~ ^[Yy]$ ]]; then
-            info "Recreate cancelled" >&2
-            return 1
-        fi
-    fi
-
-    # Delete worktree
-    if ! git worktree remove --force "$worktree_path" 2>/dev/null; then
-        error "Failed to delete worktree" >&2
-        return 1
+        hide_loading "$loader_pid"
+        success "Worktree for '$branch' deleted." >&2
     fi
 
     # Clean up empty parent directories
@@ -420,12 +301,71 @@ recreate_worktree() {
         rmdir "$parent_dir" 2>/dev/null
     fi
 
-    success "Deleted old worktree" >&2
+    return 0
+}
 
-    # Create fresh worktree
-    info "Creating fresh worktree..." >&2
+# Recreate a worktree with interactive prompts and loading animations
+recreate_worktree() {
+    local line="$1"
+    local branch
+    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+
+    if [[ -z "$branch" ]]; then
+        error "No branch selected" >&2
+        return 1
+    fi
+
+    local worktree_path
+    worktree_path=$(get_worktree_path "$branch")
+
+    if [[ ! -d "$worktree_path" ]]; then
+        error "Worktree for '$branch' does not exist." >&2
+        return 1
+    fi
+
+    # Start loading animation for deletion part
+    show_loading "Deleting worktree for '$branch'..." >&2 &
+    local loader_pid=$!
+
+    # Attempt to remove worktree, capture error if it fails
+    local error_msg
+    if ! error_msg=$(git worktree remove "$worktree_path" 2>&1); then
+        hide_loading "$loader_pid"
+
+        # Show the error and ask to force
+        error "Failed to delete worktree:" >&2
+        echo "$error_msg" >&2
+        if ask_yes_no "Force recreate? (will delete uncommitted changes)"; then
+            show_loading "Force deleting worktree..." >&2 &
+            loader_pid=$!
+            if ! git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
+                hide_loading "$loader_pid"
+                error "Failed to force-delete worktree. Cannot recreate." >&2
+                return 1
+            fi
+            hide_loading "$loader_pid"
+        else
+            info "Recreation cancelled." >&2
+            return 1
+        fi
+    else
+        hide_loading "$loader_pid"
+    fi
+
+    # Clean up empty parent directories
+    local parent_dir
+    parent_dir="$(dirname "$worktree_path")"
+    if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
+        rmdir "$parent_dir" 2>/dev/null
+    fi
+
+    success "Old worktree removed. Creating fresh one..." >&2
+    echo "" >&2
+
+    # Create new worktree
     cmd_add "$branch" >&2
 }
+
 
 # Interactive fuzzy finder mode
 cmd_interactive() {
@@ -446,7 +386,7 @@ cmd_interactive() {
     # Export functions so they're available to fzf subshells
     export -f show_worktree_info
     export -f open_or_create_worktree
-    export -f delete_worktree_interactive
+    export -f delete_worktree_with_check
     export -f recreate_worktree
     export -f has_worktree
     export -f get_worktree_path
@@ -465,6 +405,9 @@ cmd_interactive() {
     export -f success
     export -f info
     export -f warning
+    export -f show_loading
+    export -f hide_loading
+    export -f ask_yes_no
     export WORKTREE_BASE
     export RED
     export GREEN
@@ -522,8 +465,8 @@ cmd_interactive() {
         --border \
         --height 100% \
         --no-select-1 \
-        --bind "d:execute-silent($script_path __delete {})+reload($script_path __list-branches)" \
-        --bind "r:execute-silent($script_path __recreate {})+reload($script_path __list-branches)" < "$fifo")
+        --bind "d:execute($script_path __delete {})+reload($script_path __list-branches)" \
+        --bind "r:execute($script_path __recreate {})+reload($script_path __list-branches)" < "$fifo")
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null

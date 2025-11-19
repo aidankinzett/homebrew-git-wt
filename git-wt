@@ -31,6 +31,7 @@ source_lib "git-utils.sh"
 source_lib "package-manager.sh"
 source_lib "worktree-ops.sh"
 source_lib "fuzzy-finder.sh"
+source_lib "ui.sh"
 source_lib "commands.sh"
 
 # Base directory for all worktrees - validate it's not empty
