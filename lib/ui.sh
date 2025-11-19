@@ -12,7 +12,7 @@
 show_loading() {
     local msg="$1"
     local cols
-    cols=$(tput cols)
+    cols=$(tput cols 2>/dev/null || echo 80)
     local half_cols=$((cols / 2))
     local half_msg_len=$(( (${#msg} + 4) / 2 ))
     local indent=$((half_cols - half_msg_len))
@@ -34,7 +34,7 @@ show_loading() {
             printf "%${indent}s╭─ %s ─╮\n" "" "$msg"
             printf "%${indent}s│  %s  │\n" "" "${spin:$i:1}"
             printf "%${indent}s╰────╯\n" ""
-            tput cuu 2 # Move cursor up 2 lines
+            tput cuu 3 # Move cursor up 3 lines
             sleep 0.1
         done
     done
@@ -46,11 +46,13 @@ show_loading() {
 #   hide_loading $loader_pid
 hide_loading() {
     local pid="$1"
-    if kill -9 "$pid" 2>/dev/null; then
+    if kill -TERM "$pid" 2>/dev/null; then
         # Clear the spinner lines and show cursor
         printf "\r"
         tput el
+        tput cud1
         tput el
+        tput cud1
         tput el
         tput cnorm
     fi
@@ -64,6 +66,8 @@ hide_loading() {
 #   else
 #       echo "User said no"
 #   fi
+#
+# Note: Pressing Esc is treated as 'No'
 ask_yes_no() {
     local prompt="$1"
     local selection

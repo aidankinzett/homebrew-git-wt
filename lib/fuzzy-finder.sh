@@ -262,26 +262,33 @@ delete_worktree_with_check() {
         return 1
     fi
 
+    local loader_pid
+    trap 'hide_loading $loader_pid' EXIT
+
     # Start loading animation
     show_loading "Deleting worktree for '$branch'..." >&2 &
-    local loader_pid=$!
+    loader_pid=$!
 
     # Attempt to remove worktree, capture error if it fails
     local error_msg
     if ! error_msg=$(git worktree remove "$worktree_path" 2>&1); then
         hide_loading "$loader_pid"
+        trap - EXIT
 
         # Show the error and ask to force
         error "Failed to delete worktree:" >&2
         echo "$error_msg" >&2
         if ask_yes_no "Force delete?"; then
+            trap 'hide_loading $loader_pid' EXIT
             show_loading "Force deleting worktree..." >&2 &
             loader_pid=$!
             if git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
                 hide_loading "$loader_pid"
+                trap - EXIT
                 success "Worktree force-deleted successfully." >&2
             else
                 hide_loading "$loader_pid"
+                trap - EXIT
                 error "Failed to force-delete worktree." >&2
                 return 1
             fi
@@ -291,6 +298,7 @@ delete_worktree_with_check() {
         fi
     else
         hide_loading "$loader_pid"
+        trap - EXIT
         success "Worktree for '$branch' deleted." >&2
     fi
 
@@ -323,33 +331,41 @@ recreate_worktree() {
         return 1
     fi
 
+    local loader_pid
+    trap 'hide_loading $loader_pid' EXIT
+
     # Start loading animation for deletion part
     show_loading "Deleting worktree for '$branch'..." >&2 &
-    local loader_pid=$!
+    loader_pid=$!
 
     # Attempt to remove worktree, capture error if it fails
     local error_msg
     if ! error_msg=$(git worktree remove "$worktree_path" 2>&1); then
         hide_loading "$loader_pid"
+        trap - EXIT
 
         # Show the error and ask to force
         error "Failed to delete worktree:" >&2
         echo "$error_msg" >&2
         if ask_yes_no "Force recreate? (will delete uncommitted changes)"; then
+            trap 'hide_loading $loader_pid' EXIT
             show_loading "Force deleting worktree..." >&2 &
             loader_pid=$!
             if ! git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
                 hide_loading "$loader_pid"
+                trap - EXIT
                 error "Failed to force-delete worktree. Cannot recreate." >&2
                 return 1
             fi
             hide_loading "$loader_pid"
+            trap - EXIT
         else
             info "Recreation cancelled." >&2
             return 1
         fi
     else
         hide_loading "$loader_pid"
+        trap - EXIT
     fi
 
     # Clean up empty parent directories
