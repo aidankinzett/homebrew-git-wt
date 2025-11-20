@@ -13,6 +13,15 @@ show_loading() {
     local msg="$1"
     local cols
     cols=$(tput cols 2>/dev/null || echo 80)
+
+    # Consistent box-drawing characters
+    local box_top_left="╭"
+    local box_top_right="╮"
+    local box_bottom_left="╰"
+    local box_bottom_right="╯"
+    local box_horizontal="─"
+    local box_vertical="│"
+
     local half_cols=$((cols / 2))
     local half_msg_len=$(( (${#msg} + 4) / 2 ))
     local indent=$((half_cols - half_msg_len))
@@ -23,19 +32,16 @@ show_loading() {
     # Hide cursor
     tput civis 2>/dev/null
 
-    # Trap to ensure cursor is shown on exit
-    trap 'tput cnorm 2>/dev/null; exit' INT TERM
-
     while true; do
         for i in $(seq 0 9); do
             # Move to the same line, clear it, and print the box
             printf "\r"
             tput el 2>/dev/null
-            printf "%${indent}s╭─ %s ─╮\n" "" "$msg"
-            printf "%${indent}s│  %s  │\n" "" "${spin:$i:1}"
-            printf "%${indent}s╰────╯\n" ""
+            printf "%${indent}s%s%s %s %s%s\n" "" "$box_top_left" "$box_horizontal" "$msg" "$box_horizontal" "$box_top_right"
+            printf "%${indent}s%s  %s  %s\n" "" "$box_vertical" "${spin:$i:1}" "$box_vertical"
+            printf "%${indent}s%s%s%s%s%s\n" "" "$box_bottom_left" "$box_horizontal" "$box_horizontal" "$box_horizontal" "$box_bottom_right"
             tput cuu 3 2>/dev/null # Move cursor up 3 lines
-            sleep 0.1
+            sleep 0.15
         done
     done
 }
@@ -46,17 +52,17 @@ show_loading() {
 #   hide_loading $loader_pid
 hide_loading() {
     local pid="$1"
-    if kill -TERM "$pid" 2>/dev/null; then
+    if [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null; then
         wait "$pid" 2>/dev/null
-        # Clear the spinner lines and show cursor
-        printf "\r"
-        tput el 2>/dev/null
-        tput cud1 2>/dev/null
-        tput el 2>/dev/null
-        tput cud1 2>/dev/null
-        tput el 2>/dev/null
-        tput cnorm 2>/dev/null
     fi
+    # Clear the spinner lines and show cursor
+    printf "\r"
+    tput el 2>/dev/null
+    tput cud1 2>/dev/null
+    tput el 2>/dev/null
+    tput cud1 2>/dev/null
+    tput el 2>/dev/null
+    tput cnorm 2>/dev/null
 }
 
 # Asks the user a yes/no question using fzf

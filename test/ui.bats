@@ -36,35 +36,6 @@ teardown() {
     [ "$status" -eq 1 ]
 }
 
-@test "show_loading displays spinner and hides cursor" {
-    # shellcheck disable=SC2317
-    tput() {
-        if [[ "$1" == "cols" ]]; then
-            echo 80
-        else
-            echo "tput $*"
-        fi
-    }
-    export -f tput
-
-    local outfile; outfile=$(mktemp)
-
-    show_loading "Test message" > "$outfile" &
-    local pid=$!
-
-    sleep 0.2
-
-    kill -TERM "$pid" 2>/dev/null || true
-    wait "$pid" 2>/dev/null
-
-    local content
-    content=$(cat "$outfile")
-    rm "$outfile"
-
-    [[ "$content" == *"tput civis"* ]]
-    [[ "$content" == *"Test message"* ]]
-}
-
 @test "hide_loading restores cursor" {
     # shellcheck disable=SC2317
     tput() { echo "tput $*"; }

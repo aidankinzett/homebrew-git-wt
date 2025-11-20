@@ -250,7 +250,7 @@ delete_worktree_with_check() {
     branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
 
     if [[ -z "$branch" ]]; then
-        error "No branch selected" >&2
+        error "No branch selected"
         return 1
     fi
 
@@ -258,16 +258,14 @@ delete_worktree_with_check() {
     worktree_path=$(get_worktree_path "$branch")
 
     if [[ ! -d "$worktree_path" ]]; then
-        error "Worktree for '$branch' does not exist." >&2
+        error "Worktree for '$branch' does not exist."
         return 1
     fi
 
     local loader_pid
-    trap 'hide_loading "$loader_pid"' EXIT
-
-    # Start loading animation
-    show_loading "Deleting worktree for '$branch'..." >&2 &
+    show_loading "Deleting worktree for '$branch'..." &
     loader_pid=$!
+    trap 'hide_loading "$loader_pid"' EXIT
 
     # Attempt to remove worktree, capture error if it fails
     local error_msg
@@ -276,31 +274,31 @@ delete_worktree_with_check() {
         trap - EXIT
 
         # Show the error and ask to force
-        error "Failed to delete worktree:" >&2
-        echo "$error_msg" >&2
+        error "Failed to delete worktree:"
+        echo "$error_msg"
         if ask_yes_no "Force delete?"; then
             local force_loader_pid
-            trap 'hide_loading "$force_loader_pid"' EXIT
-            show_loading "Force deleting worktree..." >&2 &
+            show_loading "Force deleting worktree..." &
             force_loader_pid=$!
+            trap 'hide_loading "$force_loader_pid"' EXIT
             if git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
                 hide_loading "$force_loader_pid"
                 trap - EXIT
-                success "Worktree force-deleted successfully." >&2
+                success "Worktree force-deleted successfully."
             else
                 hide_loading "$force_loader_pid"
                 trap - EXIT
-                error "Failed to force-delete worktree." >&2
+                error "Failed to force-delete worktree."
                 return 1
             fi
         else
-            info "Deletion cancelled." >&2
+            info "Deletion cancelled."
             return 1
         fi
     else
         hide_loading "$loader_pid"
         trap - EXIT
-        success "Worktree for '$branch' deleted." >&2
+        success "Worktree for '$branch' deleted."
     fi
 
     # Clean up empty parent directories
@@ -320,7 +318,7 @@ recreate_worktree() {
     branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
 
     if [[ -z "$branch" ]]; then
-        error "No branch selected" >&2
+        error "No branch selected"
         return 1
     fi
 
@@ -328,16 +326,14 @@ recreate_worktree() {
     worktree_path=$(get_worktree_path "$branch")
 
     if [[ ! -d "$worktree_path" ]]; then
-        error "Worktree for '$branch' does not exist." >&2
+        error "Worktree for '$branch' does not exist."
         return 1
     fi
 
     local loader_pid
-    trap 'hide_loading "$loader_pid"' EXIT
-
-    # Start loading animation for deletion part
-    show_loading "Deleting worktree for '$branch'..." >&2 &
+    show_loading "Deleting worktree for '$branch'..." &
     loader_pid=$!
+    trap 'hide_loading "$loader_pid"' EXIT
 
     # Attempt to remove worktree, capture error if it fails
     local error_msg
@@ -346,23 +342,23 @@ recreate_worktree() {
         trap - EXIT
 
         # Show the error and ask to force
-        error "Failed to delete worktree:" >&2
-        echo "$error_msg" >&2
+        error "Failed to delete worktree:"
+        echo "$error_msg"
         if ask_yes_no "Force recreate? (will delete uncommitted changes)"; then
             local force_loader_pid
-            trap 'hide_loading "$force_loader_pid"' EXIT
-            show_loading "Force deleting worktree..." >&2 &
+            show_loading "Force deleting worktree..." &
             force_loader_pid=$!
+            trap 'hide_loading "$force_loader_pid"' EXIT
             if ! git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
                 hide_loading "$force_loader_pid"
                 trap - EXIT
-                error "Failed to force-delete worktree. Cannot recreate." >&2
+                error "Failed to force-delete worktree. Cannot recreate."
                 return 1
             fi
             hide_loading "$force_loader_pid"
             trap - EXIT
         else
-            info "Recreation cancelled." >&2
+            info "Recreation cancelled."
             return 1
         fi
     else
@@ -377,11 +373,11 @@ recreate_worktree() {
         rmdir "$parent_dir" 2>/dev/null
     fi
 
-    success "Old worktree removed. Creating fresh one..." >&2
-    echo "" >&2
+    success "Old worktree removed. Creating fresh one..."
+    echo ""
 
     # Create new worktree
-    cmd_add "$branch" >&2
+    cmd_add "$branch"
 }
 
 
@@ -401,7 +397,9 @@ cmd_interactive() {
         (auto_prune_stale_worktrees > "$prune_log" 2>&1) &
     fi
 
-    # Export functions so they're available to fzf subshells
+    # Export functions so they're available to fzf subshells.
+    # This is necessary because fzf's `execute` binding runs the command in a
+    # new shell, and these functions need to be available to it.
     export -f show_worktree_info
     export -f open_or_create_worktree
     export -f delete_worktree_with_check
