@@ -80,9 +80,9 @@ Run `git-wt` with no arguments to browse branches interactively:
 - Preview pane showing worktree path, status, size, and recent commits
 - Keybindings:
   - `Enter` - Create or open a worktree
-  - `d` - Delete the selected worktree. If the command fails (e.g., due to uncommitted changes), it will show the error and prompt to force delete.
+  - `d` - Delete the selected worktree. If the command fails, an interactive prompt will ask to force the deletion.
   - `r` - Recreate the worktree from scratch. This will also prompt to force if the initial deletion fails.
-  - `Esc` - Cancel
+  - `Esc` - Cancel the operation. In confirmation prompts, this is equivalent to selecting "No".
 
 ### Automatic Setup
 

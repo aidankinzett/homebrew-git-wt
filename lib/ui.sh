@@ -25,6 +25,9 @@ show_loading() {
     local half_cols=$((cols / 2))
     local half_msg_len=$(( (${#msg} + 4) / 2 ))
     local indent=$((half_cols - half_msg_len))
+    if [[ "$indent" -lt 0 ]]; then
+        indent=0
+    fi
 
     # Spinner characters
     local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
@@ -54,6 +57,7 @@ hide_loading() {
     local pid="$1"
     if [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null; then
         wait "$pid" 2>/dev/null
+        sleep 0.1 # Allow terminal buffer to flush
     fi
     # Clear the spinner lines and show cursor
     printf "\r"
@@ -74,7 +78,7 @@ hide_loading() {
 #       echo "User said no"
 #   fi
 #
-# Note: Pressing Esc is treated as 'No'
+# Note: Pressing Esc is treated as 'No'. 'No' is the default option for safety.
 ask_yes_no() {
     local prompt="$1"
     local selection
