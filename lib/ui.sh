@@ -21,20 +21,20 @@ show_loading() {
     local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 
     # Hide cursor
-    tput civis
+    tput civis 2>/dev/null
 
     # Trap to ensure cursor is shown on exit
-    trap 'tput cnorm; exit' INT TERM
+    trap 'tput cnorm 2>/dev/null; exit' INT TERM
 
     while true; do
         for i in $(seq 0 9); do
             # Move to the same line, clear it, and print the box
             printf "\r"
-            tput el
+            tput el 2>/dev/null
             printf "%${indent}s╭─ %s ─╮\n" "" "$msg"
             printf "%${indent}s│  %s  │\n" "" "${spin:$i:1}"
             printf "%${indent}s╰────╯\n" ""
-            tput cuu 3 # Move cursor up 3 lines
+            tput cuu 3 2>/dev/null # Move cursor up 3 lines
             sleep 0.1
         done
     done
@@ -47,14 +47,15 @@ show_loading() {
 hide_loading() {
     local pid="$1"
     if kill -TERM "$pid" 2>/dev/null; then
+        wait "$pid" 2>/dev/null
         # Clear the spinner lines and show cursor
         printf "\r"
-        tput el
-        tput cud1
-        tput el
-        tput cud1
-        tput el
-        tput cnorm
+        tput el 2>/dev/null
+        tput cud1 2>/dev/null
+        tput el 2>/dev/null
+        tput cud1 2>/dev/null
+        tput el 2>/dev/null
+        tput cnorm 2>/dev/null
     fi
 }
 

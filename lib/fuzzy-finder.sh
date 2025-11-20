@@ -263,7 +263,7 @@ delete_worktree_with_check() {
     fi
 
     local loader_pid
-    trap 'hide_loading $loader_pid' EXIT
+    trap 'hide_loading "$loader_pid"' EXIT
 
     # Start loading animation
     show_loading "Deleting worktree for '$branch'..." >&2 &
@@ -279,15 +279,16 @@ delete_worktree_with_check() {
         error "Failed to delete worktree:" >&2
         echo "$error_msg" >&2
         if ask_yes_no "Force delete?"; then
-            trap 'hide_loading $loader_pid' EXIT
+            local force_loader_pid
+            trap 'hide_loading "$force_loader_pid"' EXIT
             show_loading "Force deleting worktree..." >&2 &
-            loader_pid=$!
+            force_loader_pid=$!
             if git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
-                hide_loading "$loader_pid"
+                hide_loading "$force_loader_pid"
                 trap - EXIT
                 success "Worktree force-deleted successfully." >&2
             else
-                hide_loading "$loader_pid"
+                hide_loading "$force_loader_pid"
                 trap - EXIT
                 error "Failed to force-delete worktree." >&2
                 return 1
@@ -332,7 +333,7 @@ recreate_worktree() {
     fi
 
     local loader_pid
-    trap 'hide_loading $loader_pid' EXIT
+    trap 'hide_loading "$loader_pid"' EXIT
 
     # Start loading animation for deletion part
     show_loading "Deleting worktree for '$branch'..." >&2 &
@@ -348,16 +349,17 @@ recreate_worktree() {
         error "Failed to delete worktree:" >&2
         echo "$error_msg" >&2
         if ask_yes_no "Force recreate? (will delete uncommitted changes)"; then
-            trap 'hide_loading $loader_pid' EXIT
+            local force_loader_pid
+            trap 'hide_loading "$force_loader_pid"' EXIT
             show_loading "Force deleting worktree..." >&2 &
-            loader_pid=$!
+            force_loader_pid=$!
             if ! git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
-                hide_loading "$loader_pid"
+                hide_loading "$force_loader_pid"
                 trap - EXIT
                 error "Failed to force-delete worktree. Cannot recreate." >&2
                 return 1
             fi
-            hide_loading "$loader_pid"
+            hide_loading "$force_loader_pid"
             trap - EXIT
         else
             info "Recreation cancelled." >&2
