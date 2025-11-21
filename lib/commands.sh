@@ -116,14 +116,8 @@ cmd_add() {
     echo ""
     success "Worktree ready!"
 
-    # Open in Cursor
-    if command -v cursor &> /dev/null; then
-        info "Opening worktree in Cursor..."
-        cursor "$worktree_path"
-    else
-        info "To switch to the new worktree, run:"
-        echo -e "${BLUE}  cd $worktree_path${NC}"
-    fi
+    # Open in Editor
+    open_in_editor "$worktree_path"
 }
 
 # List all worktrees for current project
@@ -414,6 +408,29 @@ cmd_config() {
     fi
 
     echo ""
+    # Show editor configuration
+    echo -e "${BLUE}Editor:${NC}"
+    local current_editor
+    current_editor=$(get_editor)
+    if [[ -n "$current_editor" ]]; then
+        # Resolve the source of the configuration
+        local editor_source="Default"
+        if [[ -n "$GIT_WT_EDITOR_OVERRIDE" ]]; then
+            editor_source="Flag override"
+        elif [[ -n "$(git config --get worktree.editor)" ]]; then
+            editor_source="git config"
+        elif [[ -n "$VISUAL" ]] && [[ "$current_editor" == "$VISUAL" ]]; then
+            editor_source="VISUAL env"
+        elif [[ -n "$EDITOR" ]] && [[ "$current_editor" == "$EDITOR" ]]; then
+            editor_source="EDITOR env"
+        fi
+
+        echo -e "  ${GREEN}✓${NC} $current_editor ${GREEN}[$editor_source]${NC}"
+    else
+        echo -e "  ${YELLOW}✗ No editor detected (will output cd instructions)${NC}"
+    fi
+    echo ""
+
     info "To change configuration:"
     echo "  git config --global worktree.basepath <path>  # Set globally"
     echo "  git config --local worktree.basepath <path>   # Set for this repo"
@@ -449,6 +466,7 @@ OPTIONS:
   --refresh-env [branch]   Refresh env file symlinks (all worktrees or specific branch)
   --enable-autoprune       Enable automatic pruning for this repo
   --disable-autoprune      Disable automatic pruning for this repo
+  --editor <cmd>           Override editor for this session
   --config                 Show current configuration
   --help, -h               Show this help message
 
@@ -509,6 +527,18 @@ CONFIGURATION:
   export GIT_WT_BASE=~/custom/path
 
   Priority: local git config > global git config > environment variable > default
+
+  You can also customize the editor:
+
+  # Set globally
+  git config --global worktree.editor "code"
+
+  # Priority:
+  # 1. --editor flag
+  # 2. git config worktree.editor
+  # 3. VISUAL env var
+  # 4. EDITOR env var
+  # 5. Default (code -> cursor -> cd instructions)
 
 REQUIREMENTS:
   - fzf (for interactive mode): brew install fzf
