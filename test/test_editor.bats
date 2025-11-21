@@ -7,7 +7,6 @@ load 'test_helper/bats-support/load'
 # shellcheck disable=SC1091
 load 'test_helper/bats-assert/load'
 
-# shellcheck disable=SC2030,SC2031
 setup() {
     # Create mock environment
     export TEST_DIR="$BATS_TMPDIR/git-wt-test-editor-$$"

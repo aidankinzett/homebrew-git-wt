@@ -7,11 +7,6 @@ assert_output() {
   fi
 
   local expected="$1"
-  if [[ "$output" == "" ]]; then
-      # If output is empty, it might be captured in a different way or the test failed earlier.
-      # However, for our mock implementation, we check against the global output variable.
-      :
-  fi
 
   if [[ "$partial" == "true" ]]; then
     if [[ "$output" != *"$expected"* ]]; then
