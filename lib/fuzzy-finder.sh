@@ -242,11 +242,7 @@ open_or_create_worktree() {
     if [[ -d "$worktree_path" ]]; then
         info "Opening existing worktree: $worktree_path"
 
-        if command -v cursor &> /dev/null; then
-            cursor "$worktree_path"
-        else
-            echo -e "${BLUE}cd $worktree_path${NC}"
-        fi
+        open_in_editor "$worktree_path"
     else
         # Create new worktree
         cmd_add "$branch"
@@ -416,6 +412,8 @@ cmd_interactive() {
     export -f ask_yes_no
     export -f extract_branch_from_line
     export -f show_multiline_error
+    export -f get_editor
+    export -f open_in_editor
     export WORKTREE_BASE
     export RED
     export GREEN
