@@ -37,6 +37,7 @@ source_lib "package-manager.sh"
 source_lib "worktree-ops.sh"
 source_lib "fuzzy-finder.sh"
 source_lib "ui.sh"
+source_lib "editor.sh"
 source_lib "interactive.sh"
 source_lib "commands.sh"
 

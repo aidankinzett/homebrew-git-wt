@@ -116,14 +116,8 @@ cmd_add() {
     echo ""
     success "Worktree ready!"
 
-    # Open in Cursor
-    if command -v cursor &> /dev/null; then
-        info "Opening worktree in Cursor..."
-        cursor "$worktree_path"
-    else
-        info "To switch to the new worktree, run:"
-        echo -e "${BLUE}  cd $worktree_path${NC}"
-    fi
+    # Open in Editor
+    open_in_editor "$worktree_path"
 }
 
 # List all worktrees for current project
@@ -414,10 +408,28 @@ cmd_config() {
     fi
 
     echo ""
+    # Show editor configuration
+    local editor
+    editor=$(git config --get worktree.editor 2>/dev/null)
+    echo -e "${BLUE}Editor:${NC}"
+    if [[ -n "$editor" ]]; then
+        echo -e "  ${GREEN}✓ Configured: $editor${NC}"
+    else
+        local detected
+        detected=$(get_editor)
+        if [[ -n "$detected" ]]; then
+            echo -e "  ${GREEN}✓ Detected: $detected (default)${NC}"
+        else
+            echo -e "  ${YELLOW}✗ No supported editor found${NC}"
+        fi
+    fi
+
+    echo ""
     info "To change configuration:"
     echo "  git config --global worktree.basepath <path>  # Set globally"
     echo "  git config --local worktree.basepath <path>   # Set for this repo"
     echo "  export GIT_WT_BASE=<path>                     # Set via environment"
+    echo "  git config --global worktree.editor <editor>  # Set editor (code, cursor, agy)"
 }
 
 # Show help

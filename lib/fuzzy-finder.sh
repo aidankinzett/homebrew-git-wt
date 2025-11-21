@@ -242,11 +242,7 @@ open_or_create_worktree() {
     if [[ -d "$worktree_path" ]]; then
         info "Opening existing worktree: $worktree_path"
 
-        if command -v cursor &> /dev/null; then
-            cursor "$worktree_path"
-        else
-            echo -e "${BLUE}cd $worktree_path${NC}"
-        fi
+        open_in_editor "$worktree_path"
     else
         # Create new worktree
         cmd_add "$branch"
@@ -390,6 +386,7 @@ cmd_interactive() {
     # Export functions so they're available to fzf subshells.
     # This is necessary because fzf's `execute` binding runs the command in a
     # new shell, and these functions need to be available to it.
+    # Also export editor functions to support opening worktrees from fzf.
     export -f show_worktree_info
     export -f open_or_create_worktree
     export -f delete_worktree_with_check
@@ -416,6 +413,8 @@ cmd_interactive() {
     export -f ask_yes_no
     export -f extract_branch_from_line
     export -f show_multiline_error
+    export -f get_editor
+    export -f open_in_editor
     export WORKTREE_BASE
     export RED
     export GREEN
