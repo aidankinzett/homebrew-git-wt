@@ -4,6 +4,11 @@
 # Stores worktrees in <configurable-base>/<project-name>/<branch-name>
 # Base path can be configured via git config worktree.basepath or $GIT_WT_BASE
 
+# Ensure cursor is always visible on exit
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    trap 'tput cnorm 2>/dev/null' EXIT
+fi
+
 # Get the directory where this script is located
 # Resolve the real path in case the script is executed via a symlink (as in Homebrew)
 SCRIPT_PATH="${BASH_SOURCE[0]}"
@@ -11,6 +16,7 @@ if command -v readlink &> /dev/null && readlink -f "$SCRIPT_PATH" &> /dev/null; 
     SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
 fi
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+echo "DEBUG: SCRIPT_DIR=$SCRIPT_DIR" >&2
 
 # Helper to source library files with error handling
 source_lib() {
@@ -31,6 +37,8 @@ source_lib "git-utils.sh"
 source_lib "package-manager.sh"
 source_lib "worktree-ops.sh"
 source_lib "fuzzy-finder.sh"
+source_lib "ui.sh"
+source_lib "interactive.sh"
 source_lib "commands.sh"
 
 # Base directory for all worktrees - validate it's not empty
