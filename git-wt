@@ -46,10 +46,7 @@ export WORKTREE_BASE
 main() {
     local command="${1:-}"
 
-    # Check for --editor flag (must be first argument or before command)
-    # We check both $1 and subsequent args, but for simplicity in this script structure,
-    # let's assume flags are parsed before commands or we need a loop.
-    # Since the script has a simple structure, let's check if $1 is --editor
+    # Parse --editor flag if present as first argument (supports both --editor <value> and --editor=<value>)
     if [[ "$command" == "--editor" ]]; then
         if [[ -z "$2" ]]; then
             echo "Error: --editor requires an argument" >&2
