@@ -49,6 +49,7 @@ load_git_wt() {
     export FZF_ARGS_FILE="$TEST_TEMP_DIR/fzf_args"
     
     # Mock fzf function that reads from FZF_OUTPUT_FILE and logs args to FZF_ARGS_FILE
+    # shellcheck disable=SC2317,SC2329
     function fzf() {
         # Log all arguments to file for test verification
         echo "$@" > "$FZF_ARGS_FILE"

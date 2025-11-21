@@ -8,6 +8,7 @@ setup() {
     load_git_wt
     
     # Mock cursor to prevent opening editor
+    # shellcheck disable=SC2317,SC2329
     function cursor() {
         return 0
     }
