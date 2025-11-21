@@ -19,12 +19,12 @@ get_editor() {
                     return 0
                 else
                     # Only warn if we are going to fall back
-                    # But wait, get_editor is usually called in a subshell or assignment,
-                    # so warnings should go to stderr
+                    # Warnings are sent to stderr to avoid polluting the return value (stdout)
                     warning "Configured editor '$configured_editor' not found in PATH" >&2
                 fi
                 ;;
             *)
+                # Fall back to auto-detection on invalid config
                 warning "Invalid editor configured: $configured_editor" >&2
                 warning "Allowed options: code, cursor, agy" >&2
                 ;;

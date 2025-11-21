@@ -386,6 +386,7 @@ cmd_interactive() {
     # Export functions so they're available to fzf subshells.
     # This is necessary because fzf's `execute` binding runs the command in a
     # new shell, and these functions need to be available to it.
+    # Also export editor functions to support opening worktrees from fzf.
     export -f show_worktree_info
     export -f open_or_create_worktree
     export -f delete_worktree_with_check

@@ -61,3 +61,36 @@ teardown() {
     run _delete_worktree_internal "$branch" "$worktree_path" "Force delete?"
     [ "$status" -eq 2 ]
 }
+
+@test "open_or_create_worktree calls open_in_editor for existing worktree" {
+    local branch="feature/existing"
+    local worktree_path="$WORKTREE_BASE/test-repo/$branch"
+    mkdir -p "$(dirname "$worktree_path")"
+    git worktree add "$worktree_path" -b "$branch"
+
+    # Mock open_in_editor
+    # shellcheck disable=SC2317
+    open_in_editor() {
+        echo "Called open_in_editor with $1"
+    }
+    export -f open_in_editor
+
+    run open_or_create_worktree "  $branch"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Called open_in_editor with $worktree_path"* ]]
+}
+
+@test "open_or_create_worktree calls cmd_add for new worktree" {
+    local branch="feature/new"
+
+    # Mock cmd_add
+    # shellcheck disable=SC2317
+    cmd_add() {
+        echo "Called cmd_add with $1"
+    }
+    export -f cmd_add
+
+    run open_or_create_worktree "$branch"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Called cmd_add with $branch"* ]]
+}
