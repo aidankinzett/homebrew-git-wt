@@ -93,7 +93,7 @@ When creating a worktree, git-wt automatically:
 3. Symlinks `.env` files from main worktree
 4. Detects package manager (pnpm, yarn, or npm)
 5. Installs dependencies
-6. Opens in Cursor (if installed)
+6. Opens in your preferred editor
 
 ### Organized Storage
 
@@ -188,6 +188,19 @@ git config --global worktree.basepath /path/to/existing/worktrees
 ```
 
 **Note:** git-wt will warn you if it detects existing worktrees in different locations when you run `git-wt --list` or `git-wt`.
+
+### Editor Configuration
+
+git-wt attempts to open the new worktree in your preferred editor. It resolves the editor in the following priority order:
+
+1. `--editor` flag override
+2. `git config worktree.editor`
+3. `VISUAL` environment variable
+4. `EDITOR` environment variable
+5. Default: `code` (VS Code)
+6. Default: `cursor` (Cursor IDE)
+
+If no editor is found, it prints `cd` instructions.
 
 ## Usage
 

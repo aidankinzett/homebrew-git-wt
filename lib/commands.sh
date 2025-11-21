@@ -466,7 +466,7 @@ OPTIONS:
   --refresh-env [branch]   Refresh env file symlinks (all worktrees or specific branch)
   --enable-autoprune       Enable automatic pruning for this repo
   --disable-autoprune      Disable automatic pruning for this repo
-  --editor <cmd>           Override editor for this session
+  --editor <cmd>           Override editor for this session (also respects git config, VISUAL, EDITOR)
   --config                 Show current configuration
   --help, -h               Show this help message
 

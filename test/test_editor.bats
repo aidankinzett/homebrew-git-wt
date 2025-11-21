@@ -64,19 +64,19 @@ setup() {
 
     # shellcheck disable=SC2317
     mock_editor() {
-         echo "Launched mock_editor with $1"
+         echo "Launched mock_editor with $*"
     }
     export -f mock_editor
 
     # shellcheck disable=SC2317
     code() {
-        echo "Launched code with $1"
+        echo "Launched code with $*"
     }
     export -f code
 
     # shellcheck disable=SC2317
     cursor() {
-        echo "Launched cursor with $1"
+        echo "Launched cursor with $*"
     }
     export -f cursor
 }
@@ -163,4 +163,27 @@ teardown() {
     run open_in_editor "/path/to/worktree"
     assert_output --partial "To switch to the new worktree, run:"
     assert_output --partial "cd /path/to/worktree"
+}
+
+@test "open_in_editor: handles editor with arguments" {
+    export GIT_WT_EDITOR_OVERRIDE="mock_editor --flag"
+
+    run open_in_editor "/path/to/worktree"
+    assert_output --partial "INFO: Opening worktree in mock_editor --flag..."
+    # Because of array splitting: "mock_editor" is command, "--flag" is first arg, path is second
+    assert_output --partial "Launched mock_editor with --flag /path/to/worktree"
+}
+
+@test "open_in_editor: prevents command injection" {
+    # Try to inject a command that creates a file
+    local injection_file="$TEST_DIR/injected"
+    export GIT_WT_EDITOR_OVERRIDE="mock_editor; touch $injection_file"
+
+    run open_in_editor "/path/to/worktree"
+
+    # Verify the file was NOT created
+    if [[ -f "$injection_file" ]]; then
+        echo "FAILURE: Injection successful, file created: $injection_file"
+        exit 1
+    fi
 }

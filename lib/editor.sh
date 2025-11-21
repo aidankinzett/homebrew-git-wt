@@ -63,9 +63,10 @@ open_in_editor() {
     if editor=$(get_editor); then
         info "Opening worktree in $editor..."
 
-        # Use word splitting to handle arguments in editor command (e.g. "code -n")
-        # shellcheck disable=SC2086
-        $editor "$worktree_path"
+        # Use array-based execution for safer word splitting
+        local editor_cmd
+        read -r -a editor_cmd <<< "$editor"
+        "${editor_cmd[@]}" "$worktree_path"
     else
         info "To switch to the new worktree, run:"
         echo -e "${BLUE}  cd $worktree_path${NC}"
