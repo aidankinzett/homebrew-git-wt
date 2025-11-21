@@ -232,11 +232,8 @@ open_or_create_worktree() {
     if [[ -d "$worktree_path" ]]; then
         info "Opening existing worktree: $worktree_path"
 
-        if command -v cursor &> /dev/null; then
-            cursor "$worktree_path"
-        else
-            echo -e "${BLUE}cd $worktree_path${NC}"
-        fi
+        # Open in Editor
+        open_in_editor "$worktree_path"
     else
         # Create new worktree
         cmd_add "$branch"
@@ -465,12 +462,15 @@ cmd_interactive() {
     export -f success
     export -f info
     export -f warning
+    export -f get_editor
+    export -f open_in_editor
     export WORKTREE_BASE
     export RED
     export GREEN
     export YELLOW
     export BLUE
     export NC
+    export GIT_WT_EDITOR_OVERRIDE
 
     local script_path="$0"
 

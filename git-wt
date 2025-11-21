@@ -30,6 +30,7 @@ source_lib "config.sh"
 source_lib "git-utils.sh"
 source_lib "package-manager.sh"
 source_lib "worktree-ops.sh"
+source_lib "editor.sh"
 source_lib "fuzzy-finder.sh"
 source_lib "commands.sh"
 
@@ -44,6 +45,25 @@ export WORKTREE_BASE
 # Main command dispatcher
 main() {
     local command="${1:-}"
+
+    # Check for --editor flag (must be first argument or before command)
+    # We check both $1 and subsequent args, but for simplicity in this script structure,
+    # let's assume flags are parsed before commands or we need a loop.
+    # Since the script has a simple structure, let's check if $1 is --editor
+    if [[ "$command" == "--editor" ]]; then
+        if [[ -z "$2" ]]; then
+            echo "Error: --editor requires an argument" >&2
+            exit 1
+        fi
+        export GIT_WT_EDITOR_OVERRIDE="$2"
+        shift 2
+        command="${1:-}"
+    # Handle other variations like --editor=value
+    elif [[ "$command" == --editor=* ]]; then
+        export GIT_WT_EDITOR_OVERRIDE="${command#*=}"
+        shift
+        command="${1:-}"
+    fi
 
     # Handle flag-based commands
     case "$command" in
