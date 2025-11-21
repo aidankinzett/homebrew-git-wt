@@ -29,7 +29,7 @@ show_loading() {
     local box_vertical="│"
 
     local msg_len=${#msg}
-    local box_width=$((msg_len + 4))
+    local box_width=$((msg_len + 8))
     local indent=$(((cols - box_width) / 2))
     if [[ "$indent" -lt 0 ]]; then
         indent=0
@@ -40,6 +40,7 @@ show_loading() {
 
     # Hide cursor
     tput civis 2>/dev/null
+    trap 'tput cnorm 2>/dev/null' TERM INT
 
     while true; do
         for i in $(seq 0 9); do
@@ -49,7 +50,7 @@ show_loading() {
             printf "%${indent}s%s%s %s %s%s\n" "" "$box_top_left" "$box_horizontal" "$msg" "$box_horizontal" "$box_top_right"
             printf "%${indent}s%s  %s  %s\n" "" "$box_vertical" "${spin:$i:1}" "$box_vertical"
             printf "%${indent}s%s" "" "$box_bottom_left"
-            printf "%0.s$box_horizontal" $(seq 1 $((box_width - 2)))
+            for _ in $(seq 1 $((msg_len + 4))); do printf "%s" "$box_horizontal"; done
             printf "%s\n" "$box_bottom_right"
             tput cuu 3 2>/dev/null # Move cursor up 3 lines
             sleep 0.15
@@ -63,8 +64,9 @@ show_loading() {
 #   hide_loading $loader_pid
 hide_loading() {
     local pid="$1"
-    if [[ -n "$pid" ]] && kill -TERM "$pid" 2>/dev/null; then
-        wait "$pid" 2>/dev/null
+    if [[ -n "$pid" ]]; then
+        kill -TERM "$pid" >/dev/null 2>&1 || true
+        wait "$pid" >/dev/null 2>&1 || true
         sleep 0.1 # Allow terminal buffer to flush
     fi
     # Clear the spinner lines and show cursor, only if in an interactive terminal

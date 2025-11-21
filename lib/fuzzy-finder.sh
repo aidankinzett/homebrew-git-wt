@@ -481,6 +481,9 @@ cmd_interactive() {
         --no-select-1 \
         --bind "d:execute($script_path __delete {})+reload($script_path __list-branches)" \
         --bind "r:execute($script_path __recreate {})+reload($script_path __list-branches)" < "$fifo")
+    # Note: `execute` is used instead of `execute-silent` to ensure that the
+    # interactive prompts and loading animations from the `ui.sh` library are
+    # visible to the user. `execute-silent` would suppress this output.
 
     # Wait for background process to finish
     wait $bg_pid 2>/dev/null
