@@ -74,20 +74,22 @@ teardown() {
 @test "cmd_prune runs git worktree prune" {
     # Create a stale reference (manually remove worktree directory)
     git branch feature-prune
-    local wt_path="$TEST_TEMP_DIR/wt-prune"
+    local project_name
+    project_name=$(basename "$TEST_TEMP_DIR")
+    local wt_path="$WORKTREE_BASE/$project_name/feature-prune"
     git worktree add "$wt_path" feature-prune
     rm -rf "$wt_path"
 
     # Verify it shows as prunable
     run git worktree prune --dry-run
-    [[ "$output" =~ "wt-prune" ]]
+    [[ "$output" =~ "feature-prune" ]]
 
     run cmd_prune
     [ "$status" -eq 0 ]
 
     # Verify it's gone
     run git worktree list
-    [[ ! "$output" =~ "wt-prune" ]]
+    [[ ! "$output" =~ "feature-prune" ]]
 }
 
 @test "cmd_add requires branch name" {
