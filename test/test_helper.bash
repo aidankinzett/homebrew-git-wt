@@ -44,6 +44,26 @@ teardown_test_git_repo() {
 
 # Load git-wt script functions for testing
 load_git_wt() {
+    # Set up FZF mocking files
+    export FZF_OUTPUT_FILE="$TEST_TEMP_DIR/fzf_output"
+    export FZF_ARGS_FILE="$TEST_TEMP_DIR/fzf_args"
+    
+    # Mock fzf function that reads from FZF_OUTPUT_FILE and logs args to FZF_ARGS_FILE
+    function fzf() {
+        # Log all arguments to file for test verification
+        echo "$@" > "$FZF_ARGS_FILE"
+        
+        # Read the mocked output if file exists
+        if [[ -f "$FZF_OUTPUT_FILE" ]]; then
+            cat "$FZF_OUTPUT_FILE"
+            return 0
+        else
+            # If no mock file, simulate cancellation (Esc pressed)
+            return 1
+        fi
+    }
+    export -f fzf
+    
     # Source the main script to make functions available
     # shellcheck disable=SC1091
     source "$BATS_TEST_DIRNAME/../git-wt"

@@ -1,18 +1,11 @@
 #!/usr/bin/env bats
 
-# Tests for fuzzy finder delete and recreate functionality
-# shellcheck disable=SC1091
-
 load test_helper
 
 setup() {
     setup_test_git_repo
     load_git_wt
-
-    # Set up a project name for testing
     git remote add origin https://github.com/testuser/test-repo.git
-
-    # Set up worktree base
     WORKTREE_BASE="$TEST_TEMP_DIR/worktrees"
     export WORKTREE_BASE
 
@@ -39,7 +32,7 @@ teardown() {
     teardown_test_git_repo
 }
 
-@test "_delete_worktree_internal returns correct exit codes" {
+@test "delete_worktree_internal returns correct exit codes" {
     # Create a worktree
     local branch="feature/internal-delete"
     local worktree_path="$WORKTREE_BASE/test-repo/$branch"
@@ -49,11 +42,20 @@ teardown() {
 
     # Mock UI functions
     # shellcheck disable=SC2317
-    show_loading() { echo "12345 /tmp/dummyflag"; }
+    show_loading() { :; }
     # shellcheck disable=SC2317
     hide_loading() { :; }
     # shellcheck disable=SC2317
     ask_yes_no() { return 2; } # Cancel
+
+    # Mock git to simulate failure
+    git() {
+        if [[ "$1" == "worktree" && "$2" == "remove" ]]; then
+            echo "fatal: contains modified or untracked files"
+            return 1
+        fi
+        command git "$@"
+    }
 
     run _delete_worktree_internal "$branch" "$worktree_path" "Force delete?"
     [ "$status" -eq 2 ]

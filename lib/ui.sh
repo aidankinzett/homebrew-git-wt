@@ -129,3 +129,21 @@ ask_yes_no() {
         return 1 # No
     fi
 }
+
+# Shows a multi-line error message
+#
+# Usage:
+#   show_multiline_error "Title" "Multi-line\nMessage"
+show_multiline_error() {
+    local title="$1"
+    local message="$2"
+    
+    # Use colors if available (defined in colors.sh)
+    local red=""
+    local nc=""
+    if [[ -n "$RED" ]]; then red="$RED"; fi
+    if [[ -n "$NC" ]]; then nc="$NC"; fi
+    
+    echo -e "${red}${title}${nc}" >&2
+    echo "$message" | sed 's/^/  /' >&2
+}

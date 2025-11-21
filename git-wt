@@ -14,6 +14,7 @@ if command -v readlink &> /dev/null && readlink -f "$SCRIPT_PATH" &> /dev/null; 
     SCRIPT_PATH="$(readlink -f "$SCRIPT_PATH")"
 fi
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+echo "DEBUG: SCRIPT_DIR=$SCRIPT_DIR" >&2
 
 # Helper to source library files with error handling
 source_lib() {
@@ -35,6 +36,7 @@ source_lib "package-manager.sh"
 source_lib "worktree-ops.sh"
 source_lib "fuzzy-finder.sh"
 source_lib "ui.sh"
+source_lib "interactive.sh"
 source_lib "commands.sh"
 
 # Base directory for all worktrees - validate it's not empty
