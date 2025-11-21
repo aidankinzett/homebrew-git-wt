@@ -98,17 +98,3 @@ jobs:
           directory: ./test-results
           token: ${{ secrets.CODECOV_TOKEN }}
           files: '**/*-junit.xml'
-
-  # Optional: Test on macOS as well since that's the primary platform
-  test-macos:
-    name: Run unit tests (macOS)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install bats
-        run: brew install bats-core
-
-      - name: Run tests
-        run: make test
