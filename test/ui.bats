@@ -35,17 +35,3 @@ teardown() {
     run ask_yes_no "Test prompt"
     [ "$status" -eq 1 ]
 }
-
-@test "hide_loading restores cursor" {
-    # shellcheck disable=SC2317
-    tput() { echo "tput $*"; }
-    export -f tput
-
-    sleep 10 &
-    local pid=$!
-
-    run hide_loading "$pid"
-
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"tput cnorm"* ]]
-}

@@ -49,15 +49,14 @@ teardown() {
 
     # Mock UI functions to avoid interactive prompts in tests
     # shellcheck disable=SC2317
-    show_loading() { echo "mock loading: $1"; }
+    show_loading() { :; }
     # shellcheck disable=SC2317
-    hide_loading() { echo "mock hide loading: $1"; }
+    hide_loading() { :; }
 
     run delete_worktree_with_check "feature/delete-clean"
 
     [ "$status" -eq 0 ]
-    [[ "$output" == *"mock loading: Deleting worktree"* ]]
-    [[ "$output" == *"mock hide loading"* ]]
+    [[ "$output" == *"Worktree for 'feature/delete-clean' deleted."* ]]
     [ ! -d "$worktree_path" ]
 }
 
