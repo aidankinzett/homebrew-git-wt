@@ -354,7 +354,6 @@ recreate_worktree() {
                 return 1
             fi
             hide_loading "$force_loader_pid"
-            success "Worktree force-deleted successfully."
         else
             info "Recreation cancelled."
             return 1

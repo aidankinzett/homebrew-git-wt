@@ -48,7 +48,9 @@ show_loading() {
             tput el 2>/dev/null
             printf "%${indent}s%s%s %s %s%s\n" "" "$box_top_left" "$box_horizontal" "$msg" "$box_horizontal" "$box_top_right"
             printf "%${indent}s%s  %s  %s\n" "" "$box_vertical" "${spin:$i:1}" "$box_vertical"
-            printf "%${indent}s%s%s%s%s%s\n" "" "$box_bottom_left" "$box_horizontal" "$box_horizontal" "$box_horizontal" "$box_bottom_right"
+            printf "%${indent}s%s" "" "$box_bottom_left"
+            printf "%0.s$box_horizontal" $(seq 1 $((box_width - 2)))
+            printf "%s\n" "$box_bottom_right"
             tput cuu 3 2>/dev/null # Move cursor up 3 lines
             sleep 0.15
         done
