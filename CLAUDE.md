@@ -38,7 +38,9 @@ Where:
 - `get_project_name()` (lib/git-utils.sh:17): Extracts project name from remote URL or directory
 - `detect_package_manager()` (lib/package-manager.sh:13): Detects pnpm/yarn/npm based on lock files
 - `symlink_env_files()` (lib/package-manager.sh:33): Symlinks `.env*` files from main repo to worktree
-- `cmd_add()` (lib/commands.sh:6): Creates worktree with automatic setup (fetch, install deps, symlink env, open in Cursor)
+- `get_editor()` (lib/editor.sh:7): Resolves editor command from config or auto-detection
+- `open_in_editor()` (lib/editor.sh:42): Opens worktree in resolved editor
+- `cmd_add()` (lib/commands.sh:6): Creates worktree with automatic setup (fetch, install deps, symlink env, open in editor)
 - `cmd_list()` (lib/commands.sh:130): Lists all worktrees for current project
 - `cmd_remove()` (lib/commands.sh:172): Removes worktree and cleans up empty directories
 - `cmd_prune()` (lib/commands.sh:211): Removes stale worktree references
@@ -102,9 +104,18 @@ Detection based on lock files in this order:
 - Creates symlinks in new worktree (skips if file already exists)
 - Prevents duplication of sensitive environment variables
 
-### Cursor Integration (git-wt:647-653)
+### Editor Integration (lib/editor.sh)
 
-After creating worktree, automatically opens in Cursor if the `cursor` command is available. Falls back to printing the `cd` command if not.
+After creating worktree, automatically opens in the configured or detected editor.
+
+**Configuration Priority:**
+1. Configured editor: `git config worktree.editor` (valid options: `code`, `cursor`, `agy`)
+2. Auto-detection:
+   - `cursor` (if installed)
+   - `code` (if installed)
+   - `agy` (if installed)
+
+Falls back to printing the `cd` command if no supported editor is found.
 
 ## Planned Enhancements
 
