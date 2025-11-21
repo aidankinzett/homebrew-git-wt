@@ -5,7 +5,7 @@
 # Check if fzf is installed
 check_fzf() {
     if ! command -v fzf &> /dev/null; then
-        error "fzf is required for interactive mode"
+        error "fzf is required for interactive mode."
         echo ""
         info "Install fzf:"
         echo "  macOS:  brew install fzf"
@@ -139,7 +139,7 @@ show_worktree_info() {
     branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
-        echo "No branch selected"
+        echo "No branch selected."
         return
     fi
 
@@ -159,7 +159,7 @@ show_worktree_info() {
         if [[ -z "$status" ]]; then
             echo "Status: Clean ✓"
         else
-            echo "Status: Has uncommitted changes"
+            echo "Status: Has uncommitted changes."
         fi
 
         # Last modified time
@@ -194,31 +194,31 @@ show_worktree_info() {
         git -C "$worktree_path" log --oneline --color=always -n 3 2>/dev/null | sed 's/^/  /'
 
     else
-        echo "Worktree: Not created"
+        echo "Worktree: Not created."
         echo ""
 
         # Check if branch exists locally or remotely
         if git show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
-            echo "Branch type: Local"
+            echo "Branch type: Local."
             echo ""
             echo "Recent commits:"
-            git log --oneline --color=always -n 3 "$branch" 2>/dev/null | sed 's/^/  /' || echo "  No commits yet"
+            git log --oneline --color=always -n 3 "$branch" 2>/dev/null | sed 's/^/  /' || echo "  No commits yet."
         elif git ls-remote --heads origin "$branch" 2>/dev/null | grep -q "$branch"; then
-            echo "Branch type: Remote only (origin/$branch)"
+            echo "Branch type: Remote only (origin/$branch)."
             echo ""
             echo "Recent commits:"
-            git log --oneline --color=always -n 3 "origin/$branch" 2>/dev/null | sed 's/^/  /' || echo "  Unable to fetch commits"
+            git log --oneline --color=always -n 3 "origin/$branch" 2>/dev/null | sed 's/^/  /' || echo "  Unable to fetch commits."
         else
             # New branch - show what it will be created from
             local current_branch
             current_branch=$(git branch --show-current 2>/dev/null)
             if [[ -n "$current_branch" ]]; then
-                echo "Branch type: New (will be created from '$current_branch')"
+                echo "Branch type: New (will be created from '$current_branch')."
             else
                 # Detached HEAD - show commit hash
                 local commit_hash
                 commit_hash=$(git rev-parse --short HEAD 2>/dev/null)
-                echo "Branch type: New (will be created from commit $commit_hash)"
+                echo "Branch type: New (will be created from commit $commit_hash)."
             fi
         fi
     fi
@@ -231,7 +231,7 @@ open_or_create_worktree() {
     branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
-        error "No branch selected"
+        error "No branch selected."
         return 1
     fi
 
@@ -253,6 +253,44 @@ open_or_create_worktree() {
     fi
 }
 
+# Internal function to handle the core logic of deleting a worktree
+_delete_worktree_internal() {
+    local branch="$1"
+    local worktree_path="$2"
+    local force_prompt="$3"
+
+    local loader_info
+    loader_info=$(show_loading "Deleting worktree for '$branch'...")
+    local loader_pid
+    loader_pid=$(echo "$loader_info" | cut -d' ' -f1)
+    local flag_file
+    flag_file=$(echo "$loader_info" | cut -d' ' -f2)
+
+    local error_msg
+    if ! error_msg=$(git worktree remove "$worktree_path" 2>&1); then
+        hide_loading "$loader_pid" "$flag_file"
+        show_multiline_error "Failed to delete worktree." "$error_msg"
+        if ask_yes_no "$force_prompt"; then
+            loader_info=$(show_loading "Force deleting worktree...")
+            loader_pid=$(echo "$loader_info" | cut -d' ' -f1)
+            flag_file=$(echo "$loader_info" | cut -d' ' -f2)
+            if git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
+                hide_loading "$loader_pid" "$flag_file"
+                return 0 # Success
+            else
+                hide_loading "$loader_pid" "$flag_file"
+                error "Failed to force-delete worktree."
+                return 1 # Failure
+            fi
+        else
+            return 2 # Cancelled
+        fi
+    else
+        hide_loading "$loader_pid" "$flag_file"
+        return 0 # Success
+    fi
+}
+
 # Delete a worktree with interactive prompts and loading animations
 delete_worktree_with_check() {
     local line="$1"
@@ -260,7 +298,7 @@ delete_worktree_with_check() {
     branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
-        error "No branch selected"
+        error "No branch selected."
         return 1
     fi
 
@@ -272,46 +310,24 @@ delete_worktree_with_check() {
         return 1
     fi
 
-    local loader_pid
-    show_loading "Deleting worktree for '$branch'..." &
-    loader_pid=$!
+    _delete_worktree_internal "$branch" "$worktree_path" "Force delete?"
+    local exit_code=$?
 
-    # Attempt to remove worktree, capture error if it fails
-    local error_msg
-    if ! error_msg=$(git worktree remove "$worktree_path" 2>&1); then
-        hide_loading "$loader_pid"
-
-        # Show the error and ask to force
-        show_multiline_error "Failed to delete worktree:" "$error_msg"
-        if ask_yes_no "Force delete?"; then
-            local force_loader_pid
-            show_loading "Force deleting worktree..." &
-            force_loader_pid=$!
-            if git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
-                hide_loading "$force_loader_pid"
-                success "Worktree force-deleted successfully."
-            else
-                hide_loading "$force_loader_pid"
-                error "Failed to force-delete worktree."
-                return 1
-            fi
-        else
-            info "Deletion cancelled."
-            return 1
+    if [[ $exit_code -eq 0 ]]; then
+        success "Worktree for '$branch' deleted successfully."
+        # Clean up empty parent directories
+        local parent_dir
+        parent_dir="$(dirname "$worktree_path")"
+        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
+            rmdir "$parent_dir" 2>/dev/null
         fi
+        return 0
+    elif [[ $exit_code -eq 2 ]]; then
+        info "Deletion cancelled."
+        return 1
     else
-        hide_loading "$loader_pid"
-        success "Worktree for '$branch' deleted."
+        return 1
     fi
-
-    # Clean up empty parent directories
-    local parent_dir
-    parent_dir="$(dirname "$worktree_path")"
-    if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
-        rmdir "$parent_dir" 2>/dev/null
-    fi
-
-    return 0
 }
 
 # Recreate a worktree with interactive prompts and loading animations
@@ -321,7 +337,7 @@ recreate_worktree() {
     branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
-        error "No branch selected"
+        error "No branch selected."
         return 1
     fi
 
@@ -333,47 +349,25 @@ recreate_worktree() {
         return 1
     fi
 
-    local loader_pid
-    show_loading "Deleting worktree for '$branch'..." &
-    loader_pid=$!
+    _delete_worktree_internal "$branch" "$worktree_path" "Force recreate? (will delete uncommitted changes)"
+    local exit_code=$?
 
-    # Attempt to remove worktree, capture error if it fails
-    local error_msg
-    if ! error_msg=$(git worktree remove "$worktree_path" 2>&1); then
-        hide_loading "$loader_pid"
-
-        # Show the error and ask to force
-        show_multiline_error "Failed to delete worktree:" "$error_msg"
-        if ask_yes_no "Force recreate? (will delete uncommitted changes)"; then
-            local force_loader_pid
-            show_loading "Force deleting worktree..." &
-            force_loader_pid=$!
-            if ! git worktree remove --force "$worktree_path" >/dev/null 2>&1; then
-                hide_loading "$force_loader_pid"
-                error "Failed to force-delete worktree. Cannot recreate."
-                return 1
-            fi
-            hide_loading "$force_loader_pid"
-        else
-            info "Recreation cancelled."
-            return 1
+    if [[ $exit_code -eq 0 ]]; then
+        success "Old worktree removed. Creating fresh one..."
+        echo ""
+        # Clean up empty parent directories
+        local parent_dir
+        parent_dir="$(dirname "$worktree_path")"
+        if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
+            rmdir "$parent_dir" 2>/dev/null
         fi
+        cmd_add "$branch"
+    elif [[ $exit_code -eq 2 ]]; then
+        info "Recreation cancelled."
+        return 1
     else
-        hide_loading "$loader_pid"
+        return 1
     fi
-
-    # Clean up empty parent directories
-    local parent_dir
-    parent_dir="$(dirname "$worktree_path")"
-    if [[ -d "$parent_dir" ]] && [[ -z "$(ls -A "$parent_dir" 2>/dev/null)" ]]; then
-        rmdir "$parent_dir" 2>/dev/null
-    fi
-
-    success "Old worktree removed. Creating fresh one..."
-    echo ""
-
-    # Create new worktree
-    cmd_add "$branch"
 }
 
 
@@ -502,10 +496,10 @@ cmd_interactive() {
         elif [[ -n "$query" ]]; then
             open_or_create_worktree "$query"
         else
-            info "Cancelled"
+            info "Cancelled."
         fi
     else
         echo ""
-        info "Cancelled"
+        info "Cancelled."
     fi
 }

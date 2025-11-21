@@ -17,6 +17,11 @@ show_loading() {
     fi
 
     local msg="$1"
+    local flag_file
+    flag_file=$(mktemp)
+
+    # Start the spinner in a subshell
+    (
     local cols
     cols=$(tput cols 2>/dev/null || echo 80)
 
@@ -38,47 +43,62 @@ show_loading() {
     # Spinner characters
     local spin='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
 
-    # Hide cursor
+    # Hide cursor and trap exit
     tput civis 2>/dev/null
-    trap 'tput cnorm 2>/dev/null' TERM INT
+    trap 'tput cnorm 2>/dev/null; rm -f "$flag_file"' TERM INT EXIT
 
-    while true; do
-        for i in $(seq 0 9); do
-            # Move to the same line, clear it, and print the box
-            printf "\r"
-            tput el 2>/dev/null
-            printf "%${indent}s%s%s %s %s%s\n" "" "$box_top_left" "$box_horizontal" "$msg" "$box_horizontal" "$box_top_right"
-            printf "%${indent}s%s  %s  %s\n" "" "$box_vertical" "${spin:$i:1}" "$box_vertical"
-            printf "%${indent}s%s" "" "$box_bottom_left"
-            for _ in $(seq 1 $((msg_len + 4))); do printf "%s" "$box_horizontal"; done
-            printf "%s\n" "$box_bottom_right"
-            tput cuu 3 2>/dev/null # Move cursor up 3 lines
-            sleep 0.15
-        done
+    local i=0
+    while [[ -f "$flag_file" ]]; do
+        # Move to the same line, clear it, and print the box
+        printf "\r"
+        tput el 2>/dev/null || printf "\e[K"
+        printf "%${indent}s%s%s %s %s%s\n" "" "$box_top_left" "$box_horizontal" "$msg" "$box_horizontal" "$box_top_right"
+        printf "%${indent}s%s  %s  %s\n" "" "$box_vertical" "${spin:$i:1}" "$box_vertical"
+        printf "%${indent}s%s" "" "$box_bottom_left"
+        for _ in $(seq 1 $((msg_len + 4))); do printf "%s" "$box_horizontal"; done
+        printf "%s\n" "$box_bottom_right"
+        tput cuu 3 2>/dev/null || printf "\e[3A" # Move cursor up 3 lines
+
+        i=$(((i + 1) % ${#spin}))
+        sleep 0.1
     done
+    ) &
+
+    # Return PID and flag file path to the caller
+    echo "$! $flag_file"
 }
 
 # Hides the loading spinner
 #
 # Usage:
-#   hide_loading $loader_pid
+#   loader_info=$(show_loading "Doing something...")
+#   loader_pid=$(echo "$loader_info" | cut -d' ' -f1)
+#   flag_file=$(echo "$loader_info" | cut -d' ' -f2)
+#   ... do a long running task ...
+#   hide_loading "$loader_pid" "$flag_file"
 hide_loading() {
     local pid="$1"
+    local flag_file="$2"
+
+    # Signal the spinner to stop by removing the flag file
+    if [[ -n "$flag_file" ]]; then
+        rm -f "$flag_file"
+    fi
+
+    # Wait for the spinner process to exit
     if [[ -n "$pid" ]]; then
-        kill -TERM "$pid" >/dev/null 2>&1 || true
-        wait "$pid" >/dev/null 2>&1 || true
-        sleep 0.1 # Allow terminal buffer to flush
+        wait "$pid" 2>/dev/null || true
     fi
     # Clear the spinner lines and show cursor, only if in an interactive terminal
     if [[ -t 1 ]]; then
         printf "\r"
-        tput el 2>/dev/null
-        tput cud1 2>/dev/null
-        tput el 2>/dev/null
-        tput cud1 2>/dev/null
-        tput el 2>/dev/null
-        tput cuu 2 2>/dev/null # Move cursor back up to the original line
-        tput cnorm 2>/dev/null
+        tput el 2>/dev/null || printf "\e[K"
+        tput cud1 2>/dev/null || printf "\e[B"
+        tput el 2>/dev/null || printf "\e[K"
+        tput cud1 2>/dev/null || printf "\e[B"
+        tput el 2>/dev/null || printf "\e[K"
+        tput cuu 2 2>/dev/null || printf "\e[2A"
+        tput cnorm 2>/dev/null || printf "\e[?25h"
     fi
 }
 
@@ -95,10 +115,17 @@ hide_loading() {
 ask_yes_no() {
     local prompt="$1"
     local selection
-    selection=$(printf "No\nYes" | fzf --prompt "$prompt" --height 3 --border --header "Select an option")
-    if [[ "$selection" == "Yes" ]]; then
-        return 0
+    selection=$(printf "No\nYes" | fzf --prompt "$prompt" --height 3 --border --header "Select an option" 2>/dev/null)
+    local fzf_exit_code=$?
+
+    if [[ $fzf_exit_code -eq 0 && "$selection" == "Yes" ]]; then
+        return 0 # Yes
+    elif [[ $fzf_exit_code -eq 130 ]]; then
+        # User pressed Ctrl-C
+        error "Prompt cancelled."
+        return 1 # No
     else
-        return 1
+        # All other cases (No, Esc, other errors)
+        return 1 # No
     fi
 }
