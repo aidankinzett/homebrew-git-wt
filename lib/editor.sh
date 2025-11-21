@@ -2,6 +2,10 @@
 
 # Editor resolution and opening functions
 
+# List of allowed editors for security
+# Only these editors will be automatically executed
+ALLOWED_EDITORS=("code" "cursor" "vim" "vi" "nano" "emacs" "nvim" "subl" "mate" "atom")
+
 # Get the configured editor
 # Priority:
 # 1. GIT_WT_EDITOR_OVERRIDE (from --editor flag)
@@ -53,6 +57,20 @@ get_editor() {
     return 1
 }
 
+# Check if an editor command is allowed
+# Arguments:
+#   $1: The editor command (first word)
+is_allowed_editor() {
+    local cmd="$1"
+    local allowed
+    for allowed in "${ALLOWED_EDITORS[@]}"; do
+        if [[ "$cmd" == "$allowed" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Open a worktree in the resolved editor
 # Arguments:
 #   $1: Path to the worktree
@@ -60,14 +78,42 @@ open_in_editor() {
     local worktree_path="$1"
     local editor
 
-    if editor=$(get_editor); then
-        info "Opening worktree in $editor..."
-
-        # Use word splitting to handle arguments in editor command (e.g. "code -n")
-        # shellcheck disable=SC2086
-        $editor "$worktree_path"
-    else
+    # Default fallback message function
+    print_fallback() {
         info "To switch to the new worktree, run:"
         echo -e "${BLUE}  cd $worktree_path${NC}"
+    }
+
+    if editor=$(get_editor); then
+        # Use array-based parsing for safer word splitting
+        local editor_cmd
+        read -r -a editor_cmd <<< "$editor"
+        local base_cmd="${editor_cmd[0]}"
+
+        # Security: Check against allowlist FIRST
+        if ! is_allowed_editor "$base_cmd"; then
+            warning "Editor '$base_cmd' is not in the allowlist. Skipping automatic open."
+            info "Allowed editors: ${ALLOWED_EDITORS[*]}"
+            print_fallback
+            return 1
+        fi
+
+        # Security: Validate the base command exists
+        if ! command -v "$base_cmd" &> /dev/null; then
+            warning "Editor command '$base_cmd' not found."
+            print_fallback
+            return 1
+        fi
+
+        info "Opening worktree in $editor..."
+
+        # Execute with error handling
+        if ! "${editor_cmd[@]}" "$worktree_path"; then
+            warning "Failed to open editor."
+            print_fallback
+            return 1
+        fi
+    else
+        print_fallback
     fi
 }
