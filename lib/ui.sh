@@ -10,6 +10,12 @@
 #   ... do a long running task ...
 #   hide_loading $loader_pid
 show_loading() {
+    # Do nothing if not in an interactive terminal
+    if [[ ! -t 1 ]]; then
+        echo "$1"
+        return
+    fi
+
     local msg="$1"
     local cols
     cols=$(tput cols 2>/dev/null || echo 80)
@@ -22,9 +28,9 @@ show_loading() {
     local box_horizontal="─"
     local box_vertical="│"
 
-    local half_cols=$((cols / 2))
-    local half_msg_len=$(( (${#msg} + 4) / 2 ))
-    local indent=$((half_cols - half_msg_len))
+    local msg_len=${#msg}
+    local box_width=$((msg_len + 4))
+    local indent=$(((cols - box_width) / 2))
     if [[ "$indent" -lt 0 ]]; then
         indent=0
     fi
@@ -59,14 +65,17 @@ hide_loading() {
         wait "$pid" 2>/dev/null
         sleep 0.1 # Allow terminal buffer to flush
     fi
-    # Clear the spinner lines and show cursor
-    printf "\r"
-    tput el 2>/dev/null
-    tput cud1 2>/dev/null
-    tput el 2>/dev/null
-    tput cud1 2>/dev/null
-    tput el 2>/dev/null
-    tput cnorm 2>/dev/null
+    # Clear the spinner lines and show cursor, only if in an interactive terminal
+    if [[ -t 1 ]]; then
+        printf "\r"
+        tput el 2>/dev/null
+        tput cud1 2>/dev/null
+        tput el 2>/dev/null
+        tput cud1 2>/dev/null
+        tput el 2>/dev/null
+        tput cuu 2 2>/dev/null # Move cursor back up to the original line
+        tput cnorm 2>/dev/null
+    fi
 }
 
 # Asks the user a yes/no question using fzf

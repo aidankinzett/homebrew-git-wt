@@ -18,6 +18,20 @@ check_fzf() {
     fi
 }
 
+# Extracts the branch name from a line of fzf output
+extract_branch_from_line() {
+    local line="$1"
+    echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//'
+}
+
+# Shows a multi-line error message
+show_multiline_error() {
+    local title="$1"
+    local message="$2"
+    error "$title"
+    echo "$message"
+}
+
 # Generate branch list with indicators for fuzzy finder
 # Parameters:
 #   $1: mode - "local-only" to only show local branches, "all" to show all branches
@@ -121,10 +135,8 @@ format_branch_line() {
 # Show worktree info for preview pane
 show_worktree_info() {
     local line="$1"
-
-    # Strip ANSI color codes and extract branch name
     local branch
-    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+    branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
         echo "No branch selected"
@@ -215,10 +227,8 @@ show_worktree_info() {
 # Open or create worktree (called from fuzzy finder)
 open_or_create_worktree() {
     local line="$1"
-
-    # Strip ANSI color codes and extract branch name
     local branch
-    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+    branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
         error "No branch selected"
@@ -247,7 +257,7 @@ open_or_create_worktree() {
 delete_worktree_with_check() {
     local line="$1"
     local branch
-    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+    branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
         error "No branch selected"
@@ -272,8 +282,7 @@ delete_worktree_with_check() {
         hide_loading "$loader_pid"
 
         # Show the error and ask to force
-        error "Failed to delete worktree:"
-        echo "$error_msg"
+        show_multiline_error "Failed to delete worktree:" "$error_msg"
         if ask_yes_no "Force delete?"; then
             local force_loader_pid
             show_loading "Force deleting worktree..." &
@@ -309,7 +318,7 @@ delete_worktree_with_check() {
 recreate_worktree() {
     local line="$1"
     local branch
-    branch=$(echo "$line" | sed 's/\x1b\[[0-9;]*m//g' | sed 's/^[✓ ]*//' | sed 's/ \[.*\]$//')
+    branch=$(extract_branch_from_line "$line")
 
     if [[ -z "$branch" ]]; then
         error "No branch selected"
@@ -334,8 +343,7 @@ recreate_worktree() {
         hide_loading "$loader_pid"
 
         # Show the error and ask to force
-        error "Failed to delete worktree:"
-        echo "$error_msg"
+        show_multiline_error "Failed to delete worktree:" "$error_msg"
         if ask_yes_no "Force recreate? (will delete uncommitted changes)"; then
             local force_loader_pid
             show_loading "Force deleting worktree..." &
@@ -413,6 +421,8 @@ cmd_interactive() {
     export -f show_loading
     export -f hide_loading
     export -f ask_yes_no
+    export -f extract_branch_from_line
+    export -f show_multiline_error
     export WORKTREE_BASE
     export RED
     export GREEN
