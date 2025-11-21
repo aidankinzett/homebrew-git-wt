@@ -69,7 +69,7 @@ is_worktree_stale() {
 
     # Check if branch is merged into main/master
     # Use awk for literal string matching to avoid regex injection
-    if git branch --merged "$main_branch" 2>/dev/null | awk -v b="$branch" '$0 ~ "^[* ]*" b "$" {found=1} END {exit !found}'; then
+    if git branch --merged "$main_branch" 2>/dev/null | awk -v b="$branch" '$0 ~ "^[*+ ]*" b "$" {found=1} END {exit !found}'; then
         # Safety guardrail: Check for uncommitted changes (use git -C to avoid changing shell state)
         local status
         if ! status=$(git -C "$worktree_path" status --porcelain 2>/dev/null); then

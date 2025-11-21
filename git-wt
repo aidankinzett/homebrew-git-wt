@@ -5,7 +5,9 @@
 # Base path can be configured via git config worktree.basepath or $GIT_WT_BASE
 
 # Ensure cursor is always visible on exit
-trap 'tput cnorm 2>/dev/null' EXIT
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    trap 'tput cnorm 2>/dev/null' EXIT
+fi
 
 # Get the directory where this script is located
 # Resolve the real path in case the script is executed via a symlink (as in Homebrew)
