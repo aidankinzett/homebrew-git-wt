@@ -170,5 +170,6 @@ teardown() {
     run cmd_add "test-existing"
     [ "$status" -eq 1 ]
     [[ "$output" =~ "already has a worktree" ]]
-    [[ "$output" =~ "$custom_wt_path" ]]
+    # Use glob pattern for literal substring matching
+    [[ "$output" == *"$custom_wt_path"* ]]
 }
