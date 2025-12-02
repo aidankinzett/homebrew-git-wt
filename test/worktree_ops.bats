@@ -52,6 +52,15 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
+@test "has_worktree handles branch names with regex metacharacters" {
+    # Test that branch names with regex characters like . * [ ] are treated literally
+    git branch "feature.test"
+    git worktree add "$TEST_TEMP_DIR/feature-test-dir" "feature.test"
+
+    run has_worktree "feature.test"
+    [ "$status" -eq 0 ]
+}
+
 @test "has_worktree returns false for non-existent worktree" {
     run has_worktree "non-existent-branch"
     [ "$status" -eq 1 ]

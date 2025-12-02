@@ -25,7 +25,8 @@ has_worktree() {
 
     # Also check git's registered worktrees by parsing branch info
     # This finds worktrees even if they're in legacy locations or have different directory names
-    if git worktree list --porcelain 2>/dev/null | grep -q "^branch refs/heads/$branch$"; then
+    # Use grep -F for literal string matching to handle branch names with regex metacharacters
+    if git worktree list --porcelain 2>/dev/null | grep -qF "branch refs/heads/$branch"; then
         return 0
     fi
 
