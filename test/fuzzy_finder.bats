@@ -77,7 +77,9 @@ teardown() {
 
     run open_or_create_worktree "  $branch"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Called open_in_editor with $worktree_path"* ]]
+    # Use pattern match for path to handle /var vs /private/var on macOS
+    [[ "$output" == *"Called open_in_editor with"* ]]
+    [[ "$output" == *"test-repo/feature/existing"* ]]
 }
 
 @test "open_or_create_worktree calls cmd_add for new worktree" {

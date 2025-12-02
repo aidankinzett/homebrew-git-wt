@@ -10,6 +10,9 @@ setup_test_git_repo() {
     export HOME="$TEST_TEMP_DIR/home"
     mkdir -p "$HOME"
 
+    # Configure default branch as main before init
+    git config --global init.defaultBranch main
+
     git init
     git config user.name "Test User"
     git config user.email "test@example.com"

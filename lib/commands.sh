@@ -14,17 +14,19 @@ cmd_add() {
 
     check_git_repo || exit 1
 
+    # Check if branch already has a worktree (anywhere)
+    if has_worktree "$branch_name"; then
+        local existing_path
+        existing_path=$(get_worktree_path "$branch_name")
+        error "Branch '$branch_name' already has a worktree at: $existing_path"
+        exit 1
+    fi
+
     local project_name
     project_name=$(get_project_name)
     local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
     local main_worktree
     main_worktree=$(get_main_worktree)
-
-    # Check if worktree already exists
-    if [[ -d "$worktree_path" ]]; then
-        error "Worktree already exists at $worktree_path"
-        exit 1
-    fi
 
     # Create worktree directory structure
     mkdir -p "$(dirname "$worktree_path")"
@@ -174,9 +176,10 @@ cmd_remove() {
 
     check_git_repo || exit 1
 
-    local project_name
-    project_name=$(get_project_name)
-    local worktree_path="$WORKTREE_BASE/$project_name/$branch_name"
+    # Use get_worktree_path to find the actual worktree location
+    # This handles cases where the directory name doesn't match the branch name
+    local worktree_path
+    worktree_path=$(get_worktree_path "$branch_name")
 
     if [[ ! -d "$worktree_path" ]]; then
         error "Worktree not found at $worktree_path"

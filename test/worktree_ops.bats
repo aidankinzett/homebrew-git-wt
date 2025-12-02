@@ -36,6 +36,31 @@ teardown() {
     [ "$status" -eq 0 ]
 }
 
+@test "has_worktree returns true when directory name doesn't match branch name" {
+    # Create a worktree where directory name is different from branch name
+    git branch my-feature
+    git worktree add "$TEST_TEMP_DIR/custom-dir-name" my-feature
+
+    run has_worktree "my-feature"
+    [ "$status" -eq 0 ]
+}
+
+@test "has_worktree finds main branch in root worktree" {
+    # The main worktree (TEST_TEMP_DIR) is on main branch
+    # but directory name doesn't end with "/main"
+    run has_worktree "main"
+    [ "$status" -eq 0 ]
+}
+
+@test "has_worktree handles branch names with regex metacharacters" {
+    # Test that branch names with regex characters like . * [ ] are treated literally
+    git branch "feature.test"
+    git worktree add "$TEST_TEMP_DIR/feature-test-dir" "feature.test"
+
+    run has_worktree "feature.test"
+    [ "$status" -eq 0 ]
+}
+
 @test "has_worktree returns false for non-existent worktree" {
     run has_worktree "non-existent-branch"
     [ "$status" -eq 1 ]
@@ -48,7 +73,28 @@ teardown() {
 
     run get_worktree_path "feature-branch"
     [ "$status" -eq 0 ]
-    [ "$output" = "$wt_path" ]
+    # Use pattern match to handle /var vs /private/var on macOS
+    [[ "$output" =~ feature-branch$ ]]
+}
+
+@test "get_worktree_path finds worktree when directory name doesn't match branch" {
+    git branch my-branch
+    local wt_path="$TEST_TEMP_DIR/different-dir"
+    git worktree add "$wt_path" my-branch
+
+    run get_worktree_path "my-branch"
+    [ "$status" -eq 0 ]
+    # Use pattern match to handle /var vs /private/var on macOS
+    [[ "$output" =~ different-dir$ ]]
+}
+
+@test "get_worktree_path finds main branch in root worktree" {
+    # The main worktree is at TEST_TEMP_DIR, not at a path ending with "/main"
+    run get_worktree_path "main"
+    [ "$status" -eq 0 ]
+    # Should return a path (not empty) and should match the temp dir pattern
+    [[ -n "$output" ]]
+    [[ "$output" =~ tmp\. ]]
 }
 
 @test "get_worktree_path returns expected path when not registered but expected" {

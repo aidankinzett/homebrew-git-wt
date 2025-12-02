@@ -160,3 +160,16 @@ teardown() {
     [ "$status" -eq 0 ]
     [ -d "$expected_path" ]
 }
+
+@test "cmd_add fails if branch already has worktree elsewhere" {
+    # Create a worktree for main branch at a custom location
+    local custom_wt_path="$TEST_TEMP_DIR/custom-main"
+    git worktree add "$custom_wt_path" -b test-existing main
+
+    # Try to create another worktree for the same branch
+    run cmd_add "test-existing"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "already has a worktree" ]]
+    # Use glob pattern for literal substring matching
+    [[ "$output" == *"$custom_wt_path"* ]]
+}
