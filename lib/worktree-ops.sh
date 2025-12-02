@@ -40,6 +40,9 @@ get_worktree_path() {
 
     # Parse git worktree list --porcelain to find the worktree for this branch
     # Format is: worktree <path>\nHEAD <sha>\nbranch refs/heads/<branch>\n\n
+    # Note: This approach works for all worktrees regardless of directory name,
+    # including the main worktree (repo root) and worktrees with custom paths.
+    # Detached HEAD worktrees (created with --detach) have no branch line and are correctly ignored.
     local current_path=""
     local worktree_path=""
 

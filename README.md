@@ -102,6 +102,13 @@ All worktrees are stored in:
 ~/Git/.worktrees/<project-name>/<branch-name>
 ```
 
+**Smart Worktree Detection**: `git-wt` automatically detects existing worktrees regardless of their location:
+- Standard location: `~/Git/.worktrees/<project>/<branch>`
+- Custom locations: Created manually or in different base paths
+- Main worktree: Your repository root directory
+
+All worktrees are detected using git's internal tracking, not by directory structure, so `git-wt` works seamlessly with worktrees created by other tools or in non-standard locations.
+
 ### Auto-Pruning
 
 Automatically clean up worktrees for merged branches:
