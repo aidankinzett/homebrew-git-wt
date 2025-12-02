@@ -23,9 +23,9 @@ has_worktree() {
         return 0
     fi
 
-    # Also check git's registered worktrees (handles worktrees in different locations)
-    # This finds worktrees even if they're in legacy locations
-    if git worktree list --porcelain 2>/dev/null | grep -q "^worktree .*/$branch$"; then
+    # Also check git's registered worktrees by parsing branch info
+    # This finds worktrees even if they're in legacy locations or have different directory names
+    if git worktree list --porcelain 2>/dev/null | grep -q "^branch refs/heads/$branch$"; then
         return 0
     fi
 
@@ -38,10 +38,23 @@ has_worktree() {
 get_worktree_path() {
     local branch="$1"
 
-    # First try to find the actual worktree from git's registry
-    # This handles worktrees in legacy or non-standard locations
-    local worktree_path
-    worktree_path=$(git worktree list --porcelain 2>/dev/null | grep "^worktree .*/$branch$" | awk '{print $2}')
+    # Parse git worktree list --porcelain to find the worktree for this branch
+    # Format is: worktree <path>\nHEAD <sha>\nbranch refs/heads/<branch>\n\n
+    local current_path=""
+    local worktree_path=""
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^worktree\ (.+)$ ]]; then
+            current_path="${BASH_REMATCH[1]}"
+        elif [[ "$line" == "branch refs/heads/$branch" ]]; then
+            worktree_path="$current_path"
+            break
+        elif [[ -z "$line" ]]; then
+            # Empty line marks end of worktree entry
+            current_path=""
+        fi
+    done < <(git worktree list --porcelain 2>/dev/null)
+
     if [[ -n "$worktree_path" ]]; then
         echo "$worktree_path"
         return
