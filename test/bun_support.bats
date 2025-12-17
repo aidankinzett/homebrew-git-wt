@@ -34,8 +34,6 @@ teardown() {
 }
 
 @test "cmd_add installs dependencies with bun when bun.lockb exists" {
-    local project_name
-    project_name=$(basename "$TEST_TEMP_DIR")
     local branch="bun-branch-bin"
 
     # Create a dummy bun.lockb in the main repo so it gets copied/checked
@@ -55,8 +53,6 @@ teardown() {
 }
 
 @test "cmd_add installs dependencies with bun when bun.lock exists" {
-    local project_name
-    project_name=$(basename "$TEST_TEMP_DIR")
     local branch="bun-branch-text"
 
     # Clean up previous lockfile if any
