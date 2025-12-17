@@ -13,7 +13,9 @@
 detect_package_manager() {
     local worktree_path="$1"
 
-    if [[ -f "$worktree_path/pnpm-lock.yaml" ]]; then
+    if [[ -f "$worktree_path/bun.lockb" ]] || [[ -f "$worktree_path/bun.lock" ]]; then
+        echo "bun"
+    elif [[ -f "$worktree_path/pnpm-lock.yaml" ]]; then
         echo "pnpm"
     elif [[ -f "$worktree_path/yarn.lock" ]]; then
         echo "yarn"
