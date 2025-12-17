@@ -15,6 +15,24 @@ teardown() {
     teardown_test_git_repo
 }
 
+@test "detect_package_manager finds bun from bun.lockb" {
+    touch "$TEST_DIR/bun.lockb"
+    touch "$TEST_DIR/package.json"
+
+    result=$(detect_package_manager "$TEST_DIR")
+
+    [ "$result" = "bun" ]
+}
+
+@test "detect_package_manager finds bun from bun.lock" {
+    touch "$TEST_DIR/bun.lock"
+    touch "$TEST_DIR/package.json"
+
+    result=$(detect_package_manager "$TEST_DIR")
+
+    [ "$result" = "bun" ]
+}
+
 @test "detect_package_manager finds pnpm from pnpm-lock.yaml" {
     touch "$TEST_DIR/pnpm-lock.yaml"
     touch "$TEST_DIR/package.json"
@@ -40,6 +58,16 @@ teardown() {
     result=$(detect_package_manager "$TEST_DIR")
 
     [ "$result" = "npm" ]
+}
+
+@test "detect_package_manager prefers bun over pnpm when multiple lock files exist" {
+    touch "$TEST_DIR/bun.lockb"
+    touch "$TEST_DIR/pnpm-lock.yaml"
+    touch "$TEST_DIR/package.json"
+
+    result=$(detect_package_manager "$TEST_DIR")
+
+    [ "$result" = "bun" ]
 }
 
 @test "detect_package_manager prefers pnpm when multiple lock files exist" {

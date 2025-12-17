@@ -90,6 +90,13 @@ cmd_add() {
             cd "$worktree_path" || { warning "Failed to change to worktree directory"; exit 1; }
 
             case "$pkg_manager" in
+                bun)
+                    if bun install; then
+                        success "Dependencies installed successfully"
+                    else
+                        warning "Failed to install dependencies"
+                    fi
+                    ;;
                 pnpm)
                     if pnpm install; then
                         success "Dependencies installed successfully"
